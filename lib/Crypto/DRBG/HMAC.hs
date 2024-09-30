@@ -2,108 +2,124 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Crypto.DRBG.HMAC where
+module Crypto.DRBG.HMAC (
+    DRBG
+  , read_v
+  , read_key
 
-import qualified Crypto.Hash.SHA256 as SHA256
+  , new
+  , gen
+  , reseed
+  ) where
+
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Builder as BSB
 import Data.Word (Word64)
 
--- keystroke saver
+-- keystroke savers and utilities ---------------------------------------------
+
 fi :: (Integral a, Num b) => a -> b
 fi = fromIntegral
 {-# INLINE fi #-}
 
-_RESEED_INTERVAL :: Word64
-_RESEED_INTERVAL = (2 :: Word64) ^ (48 :: Word64)
-
-data HMAC = HMAC
-  !(BS.ByteString -> BS.ByteString -> BS.ByteString)
-  {-# UNPACK #-} !Word64
-
-data DRBG = DRBG
-                 !HMAC              -- hmac function & outlen
-  {-# UNPACK #-} !BS.ByteString     -- v
-  {-# UNPACK #-} !BS.ByteString     -- key
-  {-# UNPACK #-} !Word64            -- reseed_counter
-
-instance Show DRBG where
-  show (DRBG _ v k r) = "DRBG " <> show v <> " " <> show k <> " " <> show r
+toStrict :: BSB.Builder -> BS.ByteString
+toStrict = BS.toStrict . BSB.toLazyByteString
+{-# INLINE toStrict #-}
 
 -- dumb strict pair
 data Pair a b = Pair !a !b
   deriving Show
 
+-- types ----------------------------------------------------------------------
+
+-- HMAC function and its associated outlength
+data HMAC = HMAC
+                 !(BS.ByteString -> BS.ByteString -> BS.ByteString)
+  {-# UNPACK #-} !Word64
+
+-- DRBG environment data and state
+data DRBG = DRBG
+                 !HMAC          -- hmac function & outlen
+  {-# UNPACK #-} !BS.ByteString -- v
+  {-# UNPACK #-} !BS.ByteString -- key
+
+-- | Read the 'V' value from the DRBG state.
+read_v :: DRBG -> BS.ByteString
+read_v (DRBG _ v _) = v
+
+-- | Read the 'Key' value from the DRBG state.
+read_key :: DRBG -> BS.ByteString
+read_key (DRBG _ _ key) = key
+
+-- drbg interaction -----------------------------------------------------------
+
 update
   :: BS.ByteString
   -> DRBG
   -> DRBG
-update provided_data (DRBG h@(HMAC hmac _) v0 k0 r) =
-    let !k1 = hmac k0 (suf 0x00 v0)
+update provided_data (DRBG h@(HMAC hmac _) v0 k0) =
+    let !k1 = hmac k0 (cat v0 0x00 provided_data)
         !v1 = hmac k1 v0
     in  if   BS.null provided_data
-        then (DRBG h v1 k1 r)
-        else let !k2 = hmac k1 (suf 0x01 v1)
+        then (DRBG h v1 k1)
+        else let !k2 = hmac k1 (cat v1 0x01 provided_data)
                  !v2 = hmac k2 v1
-             in  DRBG h v2 k2 r
+             in  DRBG h v2 k2
   where
-    suf byte bs = BS.toStrict
-      . BSB.toLazyByteString
-      $ BSB.byteString bs <> BSB.word8 byte <> BSB.byteString provided_data
+    cat bs byte suf = toStrict $
+      BSB.byteString bs <> BSB.word8 byte <> BSB.byteString suf
 
-instantiate
-  :: (BS.ByteString -> BS.ByteString -> BS.ByteString)
-  -> BS.ByteString
-  -> BS.ByteString
-  -> BS.ByteString
+-- | Create a DRBG from the provided HMAC function, entropy, nonce, and
+--   personalization string.
+new
+  :: (BS.ByteString -> BS.ByteString -> BS.ByteString) -- HMAC function
+  -> BS.ByteString                                     -- entropy
+  -> BS.ByteString                                     -- nonce
+  -> BS.ByteString                                     -- personalization string
   -> DRBG
-instantiate hmac entropy nonce ps =
-    let drbg = DRBG (HMAC hmac outlen) v0 k0 1
+new hmac entropy nonce ps =
+    let !drbg = DRBG (HMAC hmac outlen) v0 k0
     in  update seed_material drbg
   where
     seed_material = entropy <> nonce <> ps
-    outlen = fi (BS.length (hmac mempty mempty)) -- UX hack, costs 1 hmac call
+    outlen = fi (BS.length (hmac mempty mempty))
     k0 = BS.replicate (fi outlen) 0x00
     v0 = BS.replicate (fi outlen) 0x01
 
-reseed :: DRBG -> BS.ByteString -> BS.ByteString -> DRBG
-reseed drbg entropy addl =
-    let !(DRBG hmac v k _) = update seed_material drbg
-    in  DRBG hmac v k 1
-  where
-    seed_material = entropy <> addl
+-- | Inject entropy and additional bytes into a DRBG.
+--
+--   Note that we don't support "proper" reseeding (i.e., we don't track
+--   a reseed counter), but this can be used for injecting entropy per
+--   spec.
+reseed :: BS.ByteString -> BS.ByteString -> DRBG -> DRBG
+reseed entropy addl drbg = update (entropy <> addl) drbg
 
-generate
+gen
   :: BS.ByteString
   -> Word64
   -> DRBG
   -> (BS.ByteString, DRBG)
-generate addl bytes drbg0@(DRBG h@(HMAC hmac outlen) _ _ r)
-    | r > _RESEED_INTERVAL = error "ppad-hmac-drbg: DRBG reseed required"
-    | otherwise =
-        let !(Pair temp drbg1) = go mempty 0 v1
-
-            !returned_bits = BS.take (fi bytes) temp
-            !drbg2 = update addl drbg1
-
-        in  (returned_bits, drbg2)
+gen addl bytes drbg0@(DRBG h@(HMAC hmac outlen) _ _) =
+    let !(Pair temp drbg1) = loop mempty 0 v1
+        !returned_bits = BS.take (fi bytes) temp
+        !drbg = update addl drbg1
+    in  (returned_bits, drbg)
   where
-    !(DRBG _ v1 k1 _)
+    !(DRBG _ v1 k1)
       | BS.null addl = drbg0
       | otherwise = update addl drbg0
 
-    go !acc !len !vl
+    loop !acc !len !vl
       | len < bytes =
           let nv   = hmac k1 vl
               nacc = acc <> BSB.byteString nv
               nlen = len + outlen
-          in  go nacc nlen nv
+          in  loop nacc nlen nv
 
-      -- take opportunity to update reseed_counter here
       | otherwise =
-          let facc = BS.toStrict . BSB.toLazyByteString $ acc
-          in  Pair facc (DRBG h vl k1 (succ r))
+          let facc = toStrict acc
+          in  Pair facc (DRBG h vl k1)
+
+-- XX maybe want some sort of primitive convenience here
 
 
--- XX test against
--- https://raw.githubusercontent.com/coruus/nist-testvectors/refs/heads/master/csrc.nist.gov/groups/STM/cavp/documents/drbg/drbgtestvectors/drbgvectors_pr_true/HMAC_DRBG.txt
