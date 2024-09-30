@@ -120,6 +120,3 @@ gen addl bytes drbg0@(DRBG h@(HMAC hmac outlen) _ _) =
           let facc = toStrict acc
           in  Pair facc (DRBG h vl k1)
 
--- XX maybe want some sort of primitive convenience here
-
-

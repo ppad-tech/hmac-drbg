@@ -28,6 +28,7 @@ library
   build-depends:
       base >= 4.9 && < 5
     , bytestring >= 0.9 && < 0.13
+    , primitive
 
 test-suite hmac-drbg-tests
   type:                exitcode-stdio-1.0
