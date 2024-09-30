@@ -34,7 +34,7 @@ test func addl bytes i_ent i_non i_per g_ent0 g_ent1 = do
       d_per = B16.decodeLenient i_per
       drbg0 = DRBG.new func d_ent d_non d_per
       v0 = DRBG.read_v drbg0
-      k0 = DRBG.read_key drbg0
+      k0 = DRBG.read_k drbg0
 
   putStrLn $ "upon instantiation:"
   print $ "  v: " <> B16.encode v0
@@ -44,7 +44,7 @@ test func addl bytes i_ent i_non i_per g_ent0 g_ent1 = do
       drbg1 = DRBG.reseed mempty d_ent0 drbg0
       (_, drbg2) = DRBG.gen addl bytes drbg1
       v1 = DRBG.read_v drbg2
-      k1 = DRBG.read_key drbg2
+      k1 = DRBG.read_k drbg2
 
   putStrLn $ "after first gen:"
   print $ "  v: " <> B16.encode v1
@@ -54,7 +54,7 @@ test func addl bytes i_ent i_non i_per g_ent0 g_ent1 = do
       drbg3      = DRBG.reseed mempty d_ent1 drbg2
       (res, drbg4) = DRBG.gen addl bytes drbg3
       v2 = DRBG.read_v drbg4
-      k2 = DRBG.read_key drbg4
+      k2 = DRBG.read_k drbg4
 
   putStrLn $ "after second gen:"
   print $ "  v: " <> B16.encode v2

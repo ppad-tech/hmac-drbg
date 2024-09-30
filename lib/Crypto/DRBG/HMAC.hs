@@ -5,7 +5,7 @@
 module Crypto.DRBG.HMAC (
     DRBG
   , read_v
-  , read_key
+  , read_k
 
   , new
   , gen
@@ -48,8 +48,8 @@ read_v :: DRBG -> BS.ByteString
 read_v (DRBG _ v _) = v
 
 -- | Read the 'Key' value from the DRBG state.
-read_key :: DRBG -> BS.ByteString
-read_key (DRBG _ _ key) = key
+read_k :: DRBG -> BS.ByteString
+read_k (DRBG _ _ key) = key
 
 -- drbg interaction -----------------------------------------------------------
 
