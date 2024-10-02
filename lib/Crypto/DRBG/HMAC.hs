@@ -12,12 +12,12 @@ module Crypto.DRBG.HMAC (
   , reseed
   ) where
 
+import Control.Monad.Primitive (PrimMonad, PrimState)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Builder as BSB
+import qualified Data.Primitive.MutVar as P
 import Data.Word (Word64)
 
-import Control.Monad.Primitive (PrimMonad, PrimState)
-import qualified Data.Primitive.MutVar as P
 
 -- keystroke savers and utilities ---------------------------------------------
 
@@ -51,7 +51,7 @@ data DRBGState = DRBGState
 -- | The DRBG.
 newtype DRBG s = DRBG (P.MutVar s DRBGState)
 
--- | Read the 'V' value from the DRBG state.
+-- | Read the 'V' value from the DRBG state. Useful for testing.
 _read_v
   :: PrimMonad m
   => DRBG (PrimState m)
@@ -60,7 +60,7 @@ _read_v (DRBG mut) = do
   DRBGState _ v _ <- P.readMutVar mut
   pure v
 
--- | Read the 'Key' value from the DRBG state.
+-- | Read the 'Key' value from the DRBG state. Useful for testing.
 _read_k
   :: PrimMonad m
   => DRBG (PrimState m)
@@ -125,6 +125,7 @@ update_pure provided_data (DRBGState h@(HMAC hmac _) v0 k0) =
                  !v2 = hmac k2 v1
              in  DRBGState h v2 k2
   where
+    -- XX custom builder strategy possibly more efficient here
     cat bs byte suf = toStrict $
       BSB.byteString bs <> BSB.word8 byte <> BSB.byteString suf
 
@@ -138,6 +139,7 @@ new_pure hmac entropy nonce ps =
     let !drbg = DRBGState (HMAC hmac outlen) v0 k0
     in  update_pure seed_material drbg
   where
+    -- XX any better to use builder?
     seed_material = entropy <> nonce <> ps
     outlen = fi (BS.length (hmac mempty mempty))
     k0 = BS.replicate (fi outlen) 0x00
@@ -153,8 +155,8 @@ gen_pure
   -> Pair BS.ByteString DRBGState
 gen_pure addl bytes drbg0@(DRBGState h@(HMAC hmac outlen) _ _) =
     let !(Pair temp drbg1) = loop mempty 0 v1
-        !returned_bits = BS.take (fi bytes) temp
-        !drbg = update_pure addl drbg1
+        returned_bits = BS.take (fi bytes) temp
+        drbg = update_pure addl drbg1
     in  Pair returned_bits drbg
   where
     !(DRBGState _ v1 k1)
