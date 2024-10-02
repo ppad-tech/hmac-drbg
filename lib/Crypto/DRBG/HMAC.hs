@@ -41,57 +41,101 @@ data HMAC = HMAC
   {-# UNPACK #-} !Word64
 
 -- DRBG environment data and state
-data DRBG = DRBG
+--
+-- XX probably track the reseed counter again
+data DRBGState = DRBGState
                  !HMAC          -- hmac function & outlen
   {-# UNPACK #-} !BS.ByteString -- v
   {-# UNPACK #-} !BS.ByteString -- key
 
+-- | The DRBG.
+newtype DRBG s = DRBG (P.MutVar s DRBGState)
+
 -- | Read the 'V' value from the DRBG state.
-_read_v :: DRBG -> BS.ByteString
-_read_v (DRBG _ v _) = v
+_read_v
+  :: PrimMonad m
+  => DRBG (PrimState m)
+  -> m BS.ByteString
+_read_v (DRBG mut) = do
+  DRBGState _ v _ <- P.readMutVar mut
+  pure v
 
 -- | Read the 'Key' value from the DRBG state.
-_read_k :: DRBG -> BS.ByteString
-_read_k (DRBG _ _ key) = key
+_read_k
+  :: PrimMonad m
+  => DRBG (PrimState m)
+  -> m BS.ByteString
+_read_k (DRBG mut) = do
+  DRBGState _ _ k <- P.readMutVar mut
+  pure k
 
--- | Primitive formulation.
-newtype Gen s = Gen (P.MutVar s DRBG)
+-- drbg interaction ------------------------------------------------------
 
--- drbg interaction -----------------------------------------------------------
+-- | Create a DRBG from the supplied HMAC function, entropy, nonce, and
+--   personalization string.
+new
+  :: PrimMonad m
+  => (BS.ByteString -> BS.ByteString -> BS.ByteString) -- HMAC function
+  -> BS.ByteString                                     -- entropy
+  -> BS.ByteString                                     -- nonce
+  -> BS.ByteString                                     -- personalization string
+  -> m (DRBG (PrimState m))
+new hmac entropy nonce ps = do
+  let !drbg = new_pure hmac entropy nonce ps
+  mut <- P.newMutVar drbg
+  pure (DRBG mut)
+
+-- | Reseed a DRBG.
+--
+--   Note that this can be used to implement "explicit" permission
+--   resistance by injecting entropy generated elsewhere.
+reseed
+  :: PrimMonad m
+  => BS.ByteString
+  -> BS.ByteString
+  -> DRBG (PrimState m)
+  -> m ()
+reseed ent add (DRBG drbg) = P.modifyMutVar' drbg (reseed_pure ent add)
+
+-- | Generate bytes from a DRBG.
+gen
+  :: PrimMonad m
+  => BS.ByteString
+  -> Word64
+  -> DRBG (PrimState m)
+  -> m BS.ByteString
+gen addl bytes (DRBG mut) = do
+  drbg0 <- P.readMutVar mut
+  let !(Pair bs drbg1) = gen_pure addl bytes drbg0
+  P.writeMutVar mut drbg1
+  pure bs
+
+-- pure drbg interaction ------------------------------------------------------
 
 update_pure
   :: BS.ByteString
-  -> DRBG
-  -> DRBG
-update_pure provided_data (DRBG h@(HMAC hmac _) v0 k0) =
+  -> DRBGState
+  -> DRBGState
+update_pure provided_data (DRBGState h@(HMAC hmac _) v0 k0) =
     let !k1 = hmac k0 (cat v0 0x00 provided_data)
         !v1 = hmac k1 v0
     in  if   BS.null provided_data
-        then (DRBG h v1 k1)
+        then (DRBGState h v1 k1)
         else let !k2 = hmac k1 (cat v1 0x01 provided_data)
                  !v2 = hmac k2 v1
-             in  DRBG h v2 k2
+             in  DRBGState h v2 k2
   where
     cat bs byte suf = toStrict $
       BSB.byteString bs <> BSB.word8 byte <> BSB.byteString suf
 
-update_prim
-  :: PrimMonad m
-  => BS.ByteString
-  -> Gen (PrimState m)
-  -> m ()
-update_prim pd (Gen gen) = P.modifyMutVar' gen (update_pure pd)
-
--- | Create a DRBG from the provided HMAC function, entropy, nonce, and
---   personalization string.
 new_pure
   :: (BS.ByteString -> BS.ByteString -> BS.ByteString) -- HMAC function
   -> BS.ByteString                                     -- entropy
   -> BS.ByteString                                     -- nonce
   -> BS.ByteString                                     -- personalization string
-  -> DRBG
+  -> DRBGState
 new_pure hmac entropy nonce ps =
-    let !drbg = DRBG (HMAC hmac outlen) v0 k0
+    let !drbg = DRBGState (HMAC hmac outlen) v0 k0
     in  update_pure seed_material drbg
   where
     seed_material = entropy <> nonce <> ps
@@ -99,46 +143,21 @@ new_pure hmac entropy nonce ps =
     k0 = BS.replicate (fi outlen) 0x00
     v0 = BS.replicate (fi outlen) 0x01
 
-new_prim
-  :: PrimMonad m
-  => (BS.ByteString -> BS.ByteString -> BS.ByteString) -- HMAC function
-  -> BS.ByteString                                     -- entropy
-  -> BS.ByteString                                     -- nonce
-  -> BS.ByteString                                     -- personalization string
-  -> m (Gen (PrimState m))
-new_prim hmac entropy nonce ps = do
-  let !drbg = new_pure hmac entropy nonce ps
-  mut <- P.newMutVar drbg
-  pure (Gen mut)
-
--- | Inject entropy and additional bytes into a DRBG.
---
---   Note that we don't support "proper" reseeding (i.e., we don't track
---   a reseed counter), but this can be used for injecting entropy per
---   spec.
-reseed_pure :: BS.ByteString -> BS.ByteString -> DRBG -> DRBG
+reseed_pure :: BS.ByteString -> BS.ByteString -> DRBGState -> DRBGState
 reseed_pure entropy addl drbg = update_pure (entropy <> addl) drbg
-
-reseed_prim
-  :: PrimMonad m
-  => BS.ByteString
-  -> BS.ByteString
-  -> Gen (PrimState m)
-  -> m ()
-reseed_prim ent add (Gen gen) = P.modifyMutVar' gen (reseed_pure ent add)
 
 gen_pure
   :: BS.ByteString
   -> Word64
-  -> DRBG
-  -> (BS.ByteString, DRBG)
-gen_pure addl bytes drbg0@(DRBG h@(HMAC hmac outlen) _ _) =
+  -> DRBGState
+  -> Pair BS.ByteString DRBGState
+gen_pure addl bytes drbg0@(DRBGState h@(HMAC hmac outlen) _ _) =
     let !(Pair temp drbg1) = loop mempty 0 v1
         !returned_bits = BS.take (fi bytes) temp
         !drbg = update_pure addl drbg1
-    in  (returned_bits, drbg) -- XX this could use a strict pair
+    in  Pair returned_bits drbg
   where
-    !(DRBG _ v1 k1)
+    !(DRBGState _ v1 k1)
       | BS.null addl = drbg0
       | otherwise = update_pure addl drbg0
 
@@ -151,17 +170,5 @@ gen_pure addl bytes drbg0@(DRBG h@(HMAC hmac outlen) _ _) =
 
       | otherwise =
           let facc = toStrict acc
-          in  Pair facc (DRBG h vl k1)
-
-gen_prim
-  :: PrimMonad m
-  => BS.ByteString
-  -> Word64
-  -> Gen (PrimState m)
-  -> m BS.ByteString
-gen_prim addl bytes (Gen mut) = do
-  drbg0 <- P.readMutVar mut
-  let !(bs, !drbg1) = gen_pure addl bytes drbg0
-  P.writeMutVar mut drbg1
-  pure $! bs
+          in  Pair facc (DRBGState h vl k1)
 
