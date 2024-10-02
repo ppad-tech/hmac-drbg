@@ -32,29 +32,32 @@ test func addl bytes i_ent i_non i_per g_ent0 g_ent1 = do
   let d_ent = B16.decodeLenient i_ent
       d_non = B16.decodeLenient i_non
       d_per = B16.decodeLenient i_per
-      drbg0 = DRBG.new func d_ent d_non d_per
-      v0 = DRBG.read_v drbg0
-      k0 = DRBG.read_k drbg0
+
+  drbg <- DRBG.new func d_ent d_non d_per
+  v0 <- DRBG._read_v drbg
+  k0 <- DRBG._read_k drbg
 
   putStrLn $ "upon instantiation:"
   print $ "  v: " <> B16.encode v0
   print $ "  k: " <> B16.encode k0
 
   let d_ent0 = B16.decodeLenient g_ent0
-      drbg1 = DRBG.reseed mempty d_ent0 drbg0
-      (_, drbg2) = DRBG.gen addl bytes drbg1
-      v1 = DRBG.read_v drbg2
-      k1 = DRBG.read_k drbg2
+
+  DRBG.reseed mempty d_ent0 drbg
+  _ <- DRBG.gen addl bytes drbg
+  v1 <- DRBG._read_v drbg
+  k1 <- DRBG._read_k drbg
 
   putStrLn $ "after first gen:"
   print $ "  v: " <> B16.encode v1
   print $ "  k: " <> B16.encode k1
 
   let d_ent1 = B16.decodeLenient g_ent1
-      drbg3      = DRBG.reseed mempty d_ent1 drbg2
-      (res, drbg4) = DRBG.gen addl bytes drbg3
-      v2 = DRBG.read_v drbg4
-      k2 = DRBG.read_k drbg4
+
+  DRBG.reseed mempty d_ent1 drbg
+  res <- DRBG.gen addl bytes drbg
+  v2 <- DRBG._read_v drbg
+  k2 <- DRBG._read_k drbg
 
   putStrLn $ "after second gen:"
   print $ "  v: " <> B16.encode v2
