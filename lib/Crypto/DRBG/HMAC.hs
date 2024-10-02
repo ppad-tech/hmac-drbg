@@ -4,8 +4,8 @@
 
 module Crypto.DRBG.HMAC (
     DRBG
-  , read_v
-  , read_k
+  , _read_v
+  , _read_k
 
   , new
   , gen
@@ -15,6 +15,9 @@ module Crypto.DRBG.HMAC (
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Builder as BSB
 import Data.Word (Word64)
+
+import Control.Monad.Primitive (PrimMonad, PrimState)
+import qualified Data.Primitive.MutVar as P
 
 -- keystroke savers and utilities ---------------------------------------------
 
@@ -44,20 +47,23 @@ data DRBG = DRBG
   {-# UNPACK #-} !BS.ByteString -- key
 
 -- | Read the 'V' value from the DRBG state.
-read_v :: DRBG -> BS.ByteString
-read_v (DRBG _ v _) = v
+_read_v :: DRBG -> BS.ByteString
+_read_v (DRBG _ v _) = v
 
 -- | Read the 'Key' value from the DRBG state.
-read_k :: DRBG -> BS.ByteString
-read_k (DRBG _ _ key) = key
+_read_k :: DRBG -> BS.ByteString
+_read_k (DRBG _ _ key) = key
+
+-- | Primitive formulation.
+newtype Gen s = Gen (P.MutVar s DRBG)
 
 -- drbg interaction -----------------------------------------------------------
 
-update
+update_pure
   :: BS.ByteString
   -> DRBG
   -> DRBG
-update provided_data (DRBG h@(HMAC hmac _) v0 k0) =
+update_pure provided_data (DRBG h@(HMAC hmac _) v0 k0) =
     let !k1 = hmac k0 (cat v0 0x00 provided_data)
         !v1 = hmac k1 v0
     in  if   BS.null provided_data
@@ -69,45 +75,72 @@ update provided_data (DRBG h@(HMAC hmac _) v0 k0) =
     cat bs byte suf = toStrict $
       BSB.byteString bs <> BSB.word8 byte <> BSB.byteString suf
 
+update_prim
+  :: PrimMonad m
+  => BS.ByteString
+  -> Gen (PrimState m)
+  -> m ()
+update_prim pd (Gen gen) = P.modifyMutVar' gen (update_pure pd)
+
 -- | Create a DRBG from the provided HMAC function, entropy, nonce, and
 --   personalization string.
-new
+new_pure
   :: (BS.ByteString -> BS.ByteString -> BS.ByteString) -- HMAC function
   -> BS.ByteString                                     -- entropy
   -> BS.ByteString                                     -- nonce
   -> BS.ByteString                                     -- personalization string
   -> DRBG
-new hmac entropy nonce ps =
+new_pure hmac entropy nonce ps =
     let !drbg = DRBG (HMAC hmac outlen) v0 k0
-    in  update seed_material drbg
+    in  update_pure seed_material drbg
   where
     seed_material = entropy <> nonce <> ps
     outlen = fi (BS.length (hmac mempty mempty))
     k0 = BS.replicate (fi outlen) 0x00
     v0 = BS.replicate (fi outlen) 0x01
 
+new_prim
+  :: PrimMonad m
+  => (BS.ByteString -> BS.ByteString -> BS.ByteString) -- HMAC function
+  -> BS.ByteString                                     -- entropy
+  -> BS.ByteString                                     -- nonce
+  -> BS.ByteString                                     -- personalization string
+  -> m (Gen (PrimState m))
+new_prim hmac entropy nonce ps = do
+  let !drbg = new_pure hmac entropy nonce ps
+  mut <- P.newMutVar drbg
+  pure (Gen mut)
+
 -- | Inject entropy and additional bytes into a DRBG.
 --
 --   Note that we don't support "proper" reseeding (i.e., we don't track
 --   a reseed counter), but this can be used for injecting entropy per
 --   spec.
-reseed :: BS.ByteString -> BS.ByteString -> DRBG -> DRBG
-reseed entropy addl drbg = update (entropy <> addl) drbg
+reseed_pure :: BS.ByteString -> BS.ByteString -> DRBG -> DRBG
+reseed_pure entropy addl drbg = update_pure (entropy <> addl) drbg
 
-gen
+reseed_prim
+  :: PrimMonad m
+  => BS.ByteString
+  -> BS.ByteString
+  -> Gen (PrimState m)
+  -> m ()
+reseed_prim ent add (Gen gen) = P.modifyMutVar' gen (reseed_pure ent add)
+
+gen_pure
   :: BS.ByteString
   -> Word64
   -> DRBG
   -> (BS.ByteString, DRBG)
-gen addl bytes drbg0@(DRBG h@(HMAC hmac outlen) _ _) =
+gen_pure addl bytes drbg0@(DRBG h@(HMAC hmac outlen) _ _) =
     let !(Pair temp drbg1) = loop mempty 0 v1
         !returned_bits = BS.take (fi bytes) temp
-        !drbg = update addl drbg1
-    in  (returned_bits, drbg)
+        !drbg = update_pure addl drbg1
+    in  (returned_bits, drbg) -- XX this could use a strict pair
   where
     !(DRBG _ v1 k1)
       | BS.null addl = drbg0
-      | otherwise = update addl drbg0
+      | otherwise = update_pure addl drbg0
 
     loop !acc !len !vl
       | len < bytes =
@@ -119,4 +152,16 @@ gen addl bytes drbg0@(DRBG h@(HMAC hmac outlen) _ _) =
       | otherwise =
           let facc = toStrict acc
           in  Pair facc (DRBG h vl k1)
+
+gen_prim
+  :: PrimMonad m
+  => BS.ByteString
+  -> Word64
+  -> Gen (PrimState m)
+  -> m BS.ByteString
+gen_prim addl bytes (Gen mut) = do
+  drbg0 <- P.readMutVar mut
+  let !(bs, !drbg1) = gen_pure addl bytes drbg0
+  P.writeMutVar mut drbg1
+  pure $! bs
 
