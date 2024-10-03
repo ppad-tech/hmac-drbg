@@ -42,7 +42,8 @@ data HMAC = HMAC
 
 -- DRBG environment data and state
 --
--- XX probably track the reseed counter again
+-- XX probably track, handle the reseed counter again; there's also security
+--    strength, length input verification, etc.
 data DRBGState = DRBGState
                  !HMAC          -- hmac function & outlen
   {-# UNPACK #-} !BS.ByteString -- v

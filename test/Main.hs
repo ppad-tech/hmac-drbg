@@ -1,73 +1,147 @@
+{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Main where
 
+import Control.Applicative ((<|>))
 import qualified Crypto.Hash.SHA256 as SHA256
 import qualified Crypto.DRBG.HMAC as DRBG
+import qualified Data.Attoparsec.ByteString.Char8 as A
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Base16 as B16
-import Data.Word (Word64)
+import Test.Tasty
+import Test.Tasty.HUnit
 
--- XX test against
+-- CAVS source:
+--
 -- https://raw.githubusercontent.com/coruus/nist-testvectors/refs/heads/master/csrc.nist.gov/groups/STM/cavp/documents/drbg/drbgtestvectors/drbgvectors_pr_true/HMAC_DRBG.txt
 
-fun0 = SHA256.hmac
-add0 :: BS.ByteString
-add0 = mempty
-byts :: Word64
-byts = 128
+main :: IO ()
+main = do
+  sha256_vectors <- BS.readFile "etc/HMAC_DRBG_SHA256.txt"
+  case A.parseOnly parse_sha256_blocks sha256_vectors of
+    Left _ -> error "ppad-hmac-drbg (test): parse error"
+    Right cs ->
+      defaultMain (cavs_14_3 cs)
 
-ent0 :: BS.ByteString
-ent0 = "9969e54b4703ff31785b879a7e5c0eae0d3e309559e9fe96b0676d49d591ea4d"
-non0 :: BS.ByteString
-non0 = "07d20d46d064757d3023cac2376127ab"
-per0 :: BS.ByteString
-per0 = mempty
-ent1 :: BS.ByteString
-ent1 = "c60f2999100f738c10f74792676a3fc4a262d13721798046e29a295181569f54"
-ent2 :: BS.ByteString
-ent2 = "c11d4524c9071bd3096015fcf7bc24a607f22fa065c937658a2a77a8699089f4"
+-- XX additionalInput cases not being handled correctly
+cavs_14_3 :: [Case] -> TestTree
+cavs_14_3 = testGroup "CAVS 14.3" . fmap execute
 
-test func addl bytes i_ent i_non i_per g_ent0 g_ent1 = do
-  let d_ent = B16.decodeLenient i_ent
-      d_non = B16.decodeLenient i_non
-      d_per = B16.decodeLenient i_per
+-- test cases
 
-  drbg <- DRBG.new func d_ent d_non d_per
+data Case = Case {
+    caseCount    :: !Int
+  -- instantiate
+  , caseEntropy0 :: !BS.ByteString
+  , caseNonce    :: !BS.ByteString
+  , casePs       :: !BS.ByteString
+  , caseV0       :: !BS.ByteString
+  , caseK0       :: !BS.ByteString
+  -- first generate
+  , caseAddl1    :: !BS.ByteString
+  , caseEntropy1 :: !BS.ByteString
+  , caseV1       :: !BS.ByteString
+  , caseK1       :: !BS.ByteString
+  -- second generate
+  , caseAddl2    :: !BS.ByteString
+  , caseEntropy2 :: !BS.ByteString
+  , caseV2       :: !BS.ByteString
+  , caseK2       :: !BS.ByteString
+  , caseReturned :: !BS.ByteString
+  }
+  deriving Show
+
+hex_digit :: A.Parser Char
+hex_digit = A.satisfy hd where
+  hd c =
+       (c >= '0' && c <= '9')
+    || (c >= 'a' && c <= 'f')
+    || (c >= 'A' && c <= 'F')
+
+parse_hex :: A.Parser BS.ByteString
+parse_hex = (B16.decodeLenient . B8.pack) <$> A.many1 hex_digit
+
+parse_kv :: BS.ByteString -> A.Parser BS.ByteString
+parse_kv k =
+       A.string k
+    *> A.skipSpace
+    *> A.char '='
+    *> parse_v
+  where
+    parse_v =
+          (A.endOfLine *> pure mempty)
+      <|> (A.skipSpace *> parse_hex <* A.endOfLine)
+
+parse_case :: A.Parser Case
+parse_case = do
+  caseCount    <- A.string "COUNT = " *> A.decimal <* A.endOfLine
+  caseEntropy0 <- parse_kv "EntropyInput"
+  caseNonce    <- parse_kv "Nonce"
+  casePs       <- parse_kv "PersonalizationString"
+  A.string "** INSTANTIATE:" *> A.endOfLine
+  caseV0       <- parse_kv "\tV"
+  caseK0       <- parse_kv "\tKey"
+  caseAddl1    <- parse_kv "AdditionalInput"
+  caseEntropy1 <- parse_kv "EntropyInputPR"
+  A.string "** GENERATE (FIRST CALL):" *> A.endOfLine
+  caseV1       <- parse_kv "\tV"
+  caseK1       <- parse_kv "\tKey"
+  caseAddl2    <- parse_kv "AdditionalInput"
+  caseEntropy2 <- parse_kv "EntropyInputPR"
+  caseReturned <- parse_kv "ReturnedBits"
+  A.string "** GENERATE (SECOND CALL):" *> A.endOfLine
+  caseV2       <- parse_kv "\tV"
+  caseK2       <- parse_kv "\tKey"
+  return Case {..}
+
+parse_cases :: A.Parser [Case]
+parse_cases = parse_case `A.sepBy` A.endOfLine
+
+parse_sha256_header :: A.Parser ()
+parse_sha256_header =
+       A.string "[SHA-256]" *> A.endOfLine
+    *> A.skipMany1 boring
+    *> A.endOfLine
+  where
+    boring = A.char '[' *> A.skipWhile (/= ']') *> A.char ']' *> A.endOfLine
+
+parse_sha256_block :: A.Parser [Case]
+parse_sha256_block =
+     parse_sha256_header
+  *> parse_cases
+  <* A.endOfLine
+
+parse_sha256_blocks :: A.Parser [Case]
+parse_sha256_blocks = concat <$> A.many1 parse_sha256_block
+
+execute :: Case -> TestTree
+execute Case {..} = testCase ("count " <> show caseCount) $ do
+  let bytes = fromIntegral (BS.length caseReturned)
+
+  drbg <- DRBG.new SHA256.hmac caseEntropy0 caseNonce casePs
   v0 <- DRBG._read_v drbg
   k0 <- DRBG._read_k drbg
 
-  putStrLn $ "upon instantiation:"
-  print $ "  v: " <> B16.encode v0
-  print $ "  k: " <> B16.encode k0
+  assertEqual "v0" v0 caseV0
+  assertEqual "k0" k0 caseK0
 
-  let d_ent0 = B16.decodeLenient g_ent0
-
-  DRBG.reseed mempty d_ent0 drbg
-  _ <- DRBG.gen addl bytes drbg
+  DRBG.reseed caseEntropy1 caseAddl1 drbg
+  _ <- DRBG.gen mempty bytes drbg
   v1 <- DRBG._read_v drbg
   k1 <- DRBG._read_k drbg
 
-  putStrLn $ "after first gen:"
-  print $ "  v: " <> B16.encode v1
-  print $ "  k: " <> B16.encode k1
+  assertEqual "v1" v1 caseV1
+  assertEqual "k1" k1 caseK1
 
-  let d_ent1 = B16.decodeLenient g_ent1
-
-  DRBG.reseed mempty d_ent1 drbg
-  res <- DRBG.gen addl bytes drbg
+  DRBG.reseed caseEntropy2 caseAddl2 drbg
+  returned <- DRBG.gen mempty bytes drbg
   v2 <- DRBG._read_v drbg
   k2 <- DRBG._read_k drbg
 
-  putStrLn $ "after second gen:"
-  print $ "  v: " <> B16.encode v2
-  print $ "  k: " <> B16.encode k2
-
-  putStrLn mempty
-
-  putStrLn $ "returned bytes:"
-  print $ "  " <> B16.encode res
-
-main :: IO ()
-main = test fun0 add0 byts ent0 non0 per0 ent1 ent2
+  assertEqual "returned_bytes" returned caseReturned
+  assertEqual "v2" v2 caseV2
+  assertEqual "k2" k2 caseK2
 

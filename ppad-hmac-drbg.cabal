@@ -40,7 +40,8 @@ test-suite hmac-drbg-tests
     -rtsopts -Wall -O2
 
   build-depends:
-      base
+      attoparsec
+    , base
     , base16-bytestring
     , bytestring
     , ppad-hmac-drbg
