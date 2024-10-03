@@ -18,7 +18,6 @@ import qualified Data.ByteString.Builder as BSB
 import qualified Data.Primitive.MutVar as P
 import Data.Word (Word64)
 
-
 -- keystroke savers and utilities ---------------------------------------------
 
 fi :: (Integral a, Num b) => a -> b
