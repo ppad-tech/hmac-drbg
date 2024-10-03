@@ -28,7 +28,9 @@ main = do
 
 -- XX additionalInput cases not being handled correctly
 cavs_14_3 :: [Case] -> TestTree
-cavs_14_3 = testGroup "CAVS 14.3" . fmap execute
+cavs_14_3 cs = testGroup "CAVS 14.3" [
+    testGroup "SHA-256" (fmap (execute SHA256.hmac) cs)
+  ]
 
 -- test cases
 
@@ -117,11 +119,13 @@ parse_sha256_block =
 parse_sha256_blocks :: A.Parser [Case]
 parse_sha256_blocks = concat <$> A.many1 parse_sha256_block
 
-execute :: Case -> TestTree
-execute Case {..} = testCase ("count " <> show caseCount) $ do
+type HMAC = BS.ByteString -> BS.ByteString -> BS.ByteString
+
+execute :: HMAC -> Case -> TestTree
+execute hmac Case {..} = testCase ("count " <> show caseCount) $ do
   let bytes = fromIntegral (BS.length caseReturned)
 
-  drbg <- DRBG.new SHA256.hmac caseEntropy0 caseNonce casePs
+  drbg <- DRBG.new hmac caseEntropy0 caseNonce casePs
   v0 <- DRBG._read_v drbg
   k0 <- DRBG._read_k drbg
 
