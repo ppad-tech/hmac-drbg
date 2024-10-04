@@ -27,7 +27,6 @@ module Crypto.DRBG.HMAC (
 import Control.Monad.Primitive (PrimMonad, PrimState)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Builder as BSB
-import qualified Data.ByteString.Builder.Extra as BE
 import qualified Data.Primitive.MutVar as P
 import Data.Word (Word64)
 
@@ -40,13 +39,6 @@ fi = fromIntegral
 toStrict :: BSB.Builder -> BS.ByteString
 toStrict = BS.toStrict . BSB.toLazyByteString
 {-# INLINE toStrict #-}
-
-toStrictSmall :: BSB.Builder -> BS.ByteString
-toStrictSmall =
-    BS.toStrict
-  . BE.toLazyByteStringWith
-      (BE.safeStrategy 128 BE.smallChunkSize) mempty
-{-# INLINE toStrictSmall #-}
 
 -- dumb strict pair
 data Pair a b = Pair !a !b
@@ -194,7 +186,7 @@ update_pure provided_data (DRBGState h@(HMACEnv hmac _) r v0 k0) =
                  !v2 = hmac k2 v1
              in  DRBGState h r v2 k2
   where
-    cat bs byte suf = toStrictSmall $
+    cat bs byte suf = toStrict $
       BSB.byteString bs <> BSB.word8 byte <> BSB.byteString suf
 
 -- SP 800-90A 10.1.2.3
