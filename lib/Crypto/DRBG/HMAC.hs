@@ -86,7 +86,7 @@ data HMACEnv = HMACEnv
                  !HMAC
   {-# UNPACK #-} !Word64
 
--- Read the 'V' value from the DRBG state. Useful for testing.
+-- | Read the 'V' value from the DRBG state. Useful for testing.
 _read_v
   :: PrimMonad m
   => DRBG (PrimState m)
@@ -95,7 +95,7 @@ _read_v (DRBG mut) = do
   DRBGState _ _ v _ <- P.readMutVar mut
   pure v
 
--- Read the 'Key' value from the DRBG state. Useful for testing.
+-- | Read the 'Key' value from the DRBG state. Useful for testing.
 _read_k
   :: PrimMonad m
   => DRBG (PrimState m)
