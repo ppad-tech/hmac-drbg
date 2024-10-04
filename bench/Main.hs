@@ -18,11 +18,10 @@ main = do
 suite drbg =
   bgroup "ppad-hmac-drbg" [
     bgroup "HMAC-SHA256" [
-      bench "gen (32B)"  $ whnfAppIO (DRBG.gen mempty 32) drbg
-    , bench "gen (64B)"  $ whnfAppIO (DRBG.gen mempty 64) drbg
-    , bench "gen (128B)" $ whnfAppIO (DRBG.gen mempty 128) drbg
+      bench "new" $ whnfAppIO (DRBG.new SHA256.hmac mempty mempty) mempty
+    , bench "reseed" $ whnfAppIO (DRBG.reseed mempty mempty) drbg
+    , bench "gen (32B)"  $ whnfAppIO (DRBG.gen mempty 32) drbg
     , bench "gen (256B)" $ whnfAppIO (DRBG.gen mempty 256) drbg
-    , bench "gen (512B)" $ whnfAppIO (DRBG.gen mempty 512) drbg
     ]
   ]
 

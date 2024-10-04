@@ -15,6 +15,7 @@ module Crypto.DRBG.HMAC (
 import Control.Monad.Primitive (PrimMonad, PrimState)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Builder as BSB
+import qualified Data.ByteString.Builder.Extra as BE
 import qualified Data.Primitive.MutVar as P
 import Data.Word (Word64)
 
@@ -28,16 +29,27 @@ toStrict :: BSB.Builder -> BS.ByteString
 toStrict = BS.toStrict . BSB.toLazyByteString
 {-# INLINE toStrict #-}
 
+toStrictSmall :: BSB.Builder -> BS.ByteString
+toStrictSmall =
+    BS.toStrict
+  . BE.toLazyByteStringWith
+      (BE.safeStrategy 128 BE.smallChunkSize) mempty
+{-# INLINE toStrictSmall #-}
+
 -- dumb strict pair
 data Pair a b = Pair !a !b
   deriving Show
 
 -- types ----------------------------------------------------------------------
 
--- HMAC function and its associated outlength
-data HMAC = HMAC
-                 !(BS.ByteString -> BS.ByteString -> BS.ByteString)
-  {-# UNPACK #-} !Word64
+_RESEED_COUNTER :: Word64
+_RESEED_COUNTER = (2 :: Word64) ^ (48 :: Word64)
+
+-- | A deterministic random bit generator (DRBG).
+--
+--   Create a DRBG with 'new', and then use and reuse it to generate
+--   bytes as needed.
+newtype DRBG s = DRBG (P.MutVar s DRBGState)
 
 -- DRBG environment data and state
 --
@@ -45,11 +57,14 @@ data HMAC = HMAC
 --    strength, length input verification, etc.
 data DRBGState = DRBGState
                  !HMAC          -- hmac function & outlen
+                 !Word64        -- reseed counter
   {-# UNPACK #-} !BS.ByteString -- v
   {-# UNPACK #-} !BS.ByteString -- key
 
--- | The DRBG.
-newtype DRBG s = DRBG (P.MutVar s DRBGState)
+-- HMAC function and its associated outlength
+data HMAC = HMAC
+                 !(BS.ByteString -> BS.ByteString -> BS.ByteString)
+  {-# UNPACK #-} !Word64
 
 -- | Read the 'V' value from the DRBG state. Useful for testing.
 _read_v
@@ -57,7 +72,7 @@ _read_v
   => DRBG (PrimState m)
   -> m BS.ByteString
 _read_v (DRBG mut) = do
-  DRBGState _ v _ <- P.readMutVar mut
+  DRBGState _ _ v _ <- P.readMutVar mut
   pure v
 
 -- | Read the 'Key' value from the DRBG state. Useful for testing.
@@ -66,13 +81,19 @@ _read_k
   => DRBG (PrimState m)
   -> m BS.ByteString
 _read_k (DRBG mut) = do
-  DRBGState _ _ k <- P.readMutVar mut
+  DRBGState _ _ _ k <- P.readMutVar mut
   pure k
 
 -- drbg interaction ------------------------------------------------------
 
 -- | Create a DRBG from the supplied HMAC function, entropy, nonce, and
 --   personalization string.
+--
+--   Returns the DRBG in any 'PrimMonad', e.g. 'ST' or 'IO'.
+--
+--   >>> import qualified Crypto.Hash.SHA256 as SHA256
+--   >>> new SHA256.hmac entropy nonce personalization_string
+--   "<drbg>"
 new
   :: PrimMonad m
   => (BS.ByteString -> BS.ByteString -> BS.ByteString) -- HMAC function
@@ -87,8 +108,11 @@ new hmac entropy nonce ps = do
 
 -- | Reseed a DRBG.
 --
---   Note that this can be used to implement "explicit" permission
+--   Note that this can be used to implement "explicit" prediction
 --   resistance by injecting entropy generated elsewhere.
+--
+--   >>> reseed entropy addl_bytes drbg
+--   "<reseeded drbg>"
 reseed
   :: PrimMonad m
   => BS.ByteString
@@ -97,7 +121,17 @@ reseed
   -> m ()
 reseed ent add (DRBG drbg) = P.modifyMutVar' drbg (reseed_pure ent add)
 
--- | Generate bytes from a DRBG.
+-- | Generate bytes from a DRBG, optionally injecting additional bytes
+--   per SP 800-90A.
+--
+--   >>> import qualified Data.ByteString.Base16 as B16
+--   >>> drbg <- new SHA256.hmac entropy nonce personalization_string
+--   >>> bytes0 <- gen addl_bytes 16 drbg
+--   >>> bytes1 <- gen addl_bytes 16 drbg
+--   >>> B16.encode bytes0
+--   "938d6ca6d0b797f7b3c653349d6e3135"
+--   >>> B16.encode bytes1
+--   "5f379d16de6f2c6f8a35c56f13f9e5a5"
 gen
   :: PrimMonad m
   => BS.ByteString
@@ -116,17 +150,16 @@ update_pure
   :: BS.ByteString
   -> DRBGState
   -> DRBGState
-update_pure provided_data (DRBGState h@(HMAC hmac _) v0 k0) =
+update_pure provided_data (DRBGState h@(HMAC hmac _) r v0 k0) =
     let !k1 = hmac k0 (cat v0 0x00 provided_data)
         !v1 = hmac k1 v0
     in  if   BS.null provided_data
-        then (DRBGState h v1 k1)
+        then DRBGState h r v1 k1
         else let !k2 = hmac k1 (cat v1 0x01 provided_data)
                  !v2 = hmac k2 v1
-             in  DRBGState h v2 k2
+             in  DRBGState h r v2 k2
   where
-    -- XX custom builder strategy possibly more efficient here
-    cat bs byte suf = toStrict $
+    cat bs byte suf = toStrictSmall $
       BSB.byteString bs <> BSB.word8 byte <> BSB.byteString suf
 
 new_pure
@@ -136,30 +169,33 @@ new_pure
   -> BS.ByteString                                     -- personalization string
   -> DRBGState
 new_pure hmac entropy nonce ps =
-    let !drbg = DRBGState (HMAC hmac outlen) v0 k0
+    let !drbg = DRBGState (HMAC hmac outlen) 1 v0 k0
     in  update_pure seed_material drbg
   where
-    -- XX any better to use builder?
     seed_material = entropy <> nonce <> ps
     outlen = fi (BS.length (hmac mempty mempty))
     k0 = BS.replicate (fi outlen) 0x00
     v0 = BS.replicate (fi outlen) 0x01
 
 reseed_pure :: BS.ByteString -> BS.ByteString -> DRBGState -> DRBGState
-reseed_pure entropy addl drbg = update_pure (entropy <> addl) drbg
+reseed_pure entropy addl drbg =
+  let !(DRBGState h _ v k) = update_pure (entropy <> addl) drbg
+  in  DRBGState h 1 v k
 
 gen_pure
   :: BS.ByteString
   -> Word64
   -> DRBGState
   -> Pair BS.ByteString DRBGState
-gen_pure addl bytes drbg0@(DRBGState h@(HMAC hmac outlen) _ _) =
-    let !(Pair temp drbg1) = loop mempty 0 v1
-        returned_bits = BS.take (fi bytes) temp
-        drbg = update_pure addl drbg1
-    in  Pair returned_bits drbg
+gen_pure addl bytes drbg0@(DRBGState h@(HMAC hmac outlen) _ _ _)
+    | r > _RESEED_COUNTER = error "ppad-sha256: reseed required"
+    | otherwise =
+        let !(Pair temp drbg1) = loop mempty 0 v1
+            returned_bits = BS.take (fi bytes) temp
+            drbg = update_pure addl drbg1
+        in  Pair returned_bits drbg
   where
-    !(DRBGState _ v1 k1)
+    !(DRBGState _ r v1 k1)
       | BS.null addl = drbg0
       | otherwise = update_pure addl drbg0
 
@@ -172,5 +208,5 @@ gen_pure addl bytes drbg0@(DRBGState h@(HMAC hmac outlen) _ _) =
 
       | otherwise =
           let facc = toStrict acc
-          in  Pair facc (DRBGState h vl k1)
+          in  Pair facc (DRBGState h (succ r) vl k1)
 

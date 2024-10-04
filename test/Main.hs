@@ -26,7 +26,6 @@ main = do
     Right cs ->
       defaultMain (cavs_14_3 cs)
 
--- XX additionalInput cases not being handled correctly
 cavs_14_3 :: [Case] -> TestTree
 cavs_14_3 cs = testGroup "CAVS 14.3" [
     testGroup "SHA-256" (fmap (execute SHA256.hmac) cs)
