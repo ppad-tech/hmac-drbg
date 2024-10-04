@@ -2,6 +2,15 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE LambdaCase #-}
 
+-- |
+-- Module: Crypto.DRBG.HMAC
+-- Copyright: (c) 2024 Jared Tobin
+-- License: MIT
+-- Maintainer: Jared Tobin <jared@ppad.tech>
+--
+-- A pure HMAC-DRBG implementation, as specified by
+-- [NIST SP-800-90A](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-90Ar1.pdf).
+
 module Crypto.DRBG.HMAC (
     DRBG
   , _read_v
@@ -42,6 +51,7 @@ data Pair a b = Pair !a !b
 
 -- types ----------------------------------------------------------------------
 
+-- see SP 800-90A table 2
 _RESEED_COUNTER :: Word64
 _RESEED_COUNTER = (2 :: Word64) ^ (48 :: Word64)
 
@@ -52,9 +62,6 @@ _RESEED_COUNTER = (2 :: Word64) ^ (48 :: Word64)
 newtype DRBG s = DRBG (P.MutVar s DRBGState)
 
 -- DRBG environment data and state
---
--- XX probably track, handle the reseed counter again; there's also security
---    strength, length input verification, etc.
 data DRBGState = DRBGState
                  !HMAC          -- hmac function & outlen
                  !Word64        -- reseed counter
@@ -66,7 +73,7 @@ data HMAC = HMAC
                  !(BS.ByteString -> BS.ByteString -> BS.ByteString)
   {-# UNPACK #-} !Word64
 
--- | Read the 'V' value from the DRBG state. Useful for testing.
+-- Read the 'V' value from the DRBG state. Useful for testing.
 _read_v
   :: PrimMonad m
   => DRBG (PrimState m)
@@ -75,7 +82,7 @@ _read_v (DRBG mut) = do
   DRBGState _ _ v _ <- P.readMutVar mut
   pure v
 
--- | Read the 'Key' value from the DRBG state. Useful for testing.
+-- Read the 'Key' value from the DRBG state. Useful for testing.
 _read_k
   :: PrimMonad m
   => DRBG (PrimState m)
@@ -146,6 +153,7 @@ gen addl bytes (DRBG mut) = do
 
 -- pure drbg interaction ------------------------------------------------------
 
+-- SP 800-90A 10.1.2.2
 update_pure
   :: BS.ByteString
   -> DRBGState
@@ -162,6 +170,7 @@ update_pure provided_data (DRBGState h@(HMAC hmac _) r v0 k0) =
     cat bs byte suf = toStrictSmall $
       BSB.byteString bs <> BSB.word8 byte <> BSB.byteString suf
 
+-- SP 800-90A 10.1.2.3
 new_pure
   :: (BS.ByteString -> BS.ByteString -> BS.ByteString) -- HMAC function
   -> BS.ByteString                                     -- entropy
@@ -177,11 +186,13 @@ new_pure hmac entropy nonce ps =
     k0 = BS.replicate (fi outlen) 0x00
     v0 = BS.replicate (fi outlen) 0x01
 
+-- SP 800-90A 10.1.2.4
 reseed_pure :: BS.ByteString -> BS.ByteString -> DRBGState -> DRBGState
 reseed_pure entropy addl drbg =
   let !(DRBGState h _ v k) = update_pure (entropy <> addl) drbg
   in  DRBGState h 1 v k
 
+-- SP 800-90A 10.1.2.5
 gen_pure
   :: BS.ByteString
   -> Word64
