@@ -16,6 +16,8 @@ module Crypto.DRBG.HMAC (
   , _read_v
   , _read_k
 
+  , HMAC
+
   , new
   , gen
   , reseed
@@ -63,14 +65,25 @@ newtype DRBG s = DRBG (P.MutVar s DRBGState)
 
 -- DRBG environment data and state
 data DRBGState = DRBGState
-                 !HMAC          -- hmac function & outlen
+                 !HMACEnv       -- hmac function & outlen
                  !Word64        -- reseed counter
   {-# UNPACK #-} !BS.ByteString -- v
   {-# UNPACK #-} !BS.ByteString -- key
 
+-- NB following synonym really only exists to make haddocks more
+--    readable
+
+-- | A HMAC function, taking a key as the first argument and the input
+--   value as the second, producing a MAC.
+--
+--   >>> import qualified Crypto.Hash.SHA256 as SHA256
+--   >>> :t SHA256.hmac
+--   SHA256.hmac :: BS.ByteString -> BS.ByteString -> BS.ByteString
+type HMAC = BS.ByteString -> BS.ByteString -> BS.ByteString
+
 -- HMAC function and its associated outlength
-data HMAC = HMAC
-                 !(BS.ByteString -> BS.ByteString -> BS.ByteString)
+data HMACEnv = HMACEnv
+                 !HMAC
   {-# UNPACK #-} !Word64
 
 -- Read the 'V' value from the DRBG state. Useful for testing.
@@ -107,10 +120,10 @@ _read_k (DRBG mut) = do
 --   "<drbg>"
 new
   :: PrimMonad m
-  => (BS.ByteString -> BS.ByteString -> BS.ByteString) -- HMAC function
-  -> BS.ByteString                                     -- entropy
-  -> BS.ByteString                                     -- nonce
-  -> BS.ByteString                                     -- personalization string
+  => HMAC           -- HMAC function
+  -> BS.ByteString  -- entropy
+  -> BS.ByteString  -- nonce
+  -> BS.ByteString  -- personalization string
   -> m (DRBG (PrimState m))
 new hmac entropy nonce ps = do
   let !drbg = new_pure hmac entropy nonce ps
@@ -171,7 +184,7 @@ update_pure
   :: BS.ByteString
   -> DRBGState
   -> DRBGState
-update_pure provided_data (DRBGState h@(HMAC hmac _) r v0 k0) =
+update_pure provided_data (DRBGState h@(HMACEnv hmac _) r v0 k0) =
     let !k1 = hmac k0 (cat v0 0x00 provided_data)
         !v1 = hmac k1 v0
     in  if   BS.null provided_data
@@ -191,7 +204,7 @@ new_pure
   -> BS.ByteString                                     -- personalization string
   -> DRBGState
 new_pure hmac entropy nonce ps =
-    let !drbg = DRBGState (HMAC hmac outlen) 1 v0 k0
+    let !drbg = DRBGState (HMACEnv hmac outlen) 1 v0 k0
     in  update_pure seed_material drbg
   where
     seed_material = entropy <> nonce <> ps
@@ -211,7 +224,7 @@ gen_pure
   -> Word64
   -> DRBGState
   -> Pair BS.ByteString DRBGState
-gen_pure addl bytes drbg0@(DRBGState h@(HMAC hmac outlen) _ _ _)
+gen_pure addl bytes drbg0@(DRBGState h@(HMACEnv hmac outlen) _ _ _)
     | r > _RESEED_COUNTER = error "ppad-sha256: reseed required"
     | otherwise =
         let !(Pair temp drbg1) = loop mempty 0 v1
