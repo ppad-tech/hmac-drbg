@@ -226,7 +226,7 @@ gen_pure
   -> DRBGState
   -> Pair BS.ByteString DRBGState
 gen_pure addl bytes drbg0@(DRBGState h@(HMACEnv hmac outlen) _ _ _)
-    | r > _RESEED_COUNTER = error "ppad-sha256: reseed required"
+    | r > _RESEED_COUNTER = error "ppad-hmac-drbg: reseed required"
     | otherwise =
         let !(Pair temp drbg1) = loop mempty 0 v1
             returned_bits = BS.take (fi bytes) temp
