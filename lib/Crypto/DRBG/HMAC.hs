@@ -96,7 +96,11 @@ _read_k (DRBG mut) = do
 -- | Create a DRBG from the supplied HMAC function, entropy, nonce, and
 --   personalization string.
 --
---   Returns the DRBG in any 'PrimMonad', e.g. 'ST' or 'IO'.
+--   You can instantiate the DRBG using any appropriate HMAC function;
+--   it should merely take a key and value as input, as is standard, and
+--   return a MAC digest, each being a strict 'ByteString'.
+--
+--   The DRBG is returned in any 'PrimMonad', e.g. 'ST' or 'IO'.
 --
 --   >>> import qualified Crypto.Hash.SHA256 as SHA256
 --   >>> new SHA256.hmac entropy nonce personalization_string
@@ -115,9 +119,18 @@ new hmac entropy nonce ps = do
 
 -- | Reseed a DRBG.
 --
---   Note that this can be used to implement "explicit" prediction
---   resistance by injecting entropy generated elsewhere.
+--   Each DRBG has an internal /reseed counter/ that tracks the number
+--   of requests made to the generator (note /requests made/, not /bytes
+--   generated/). SP 800-90A specifies that a HMAC-DRBG should support
+--   2 ^ 48 requests before requiring a reseed, so in practice you're
+--   unlikely to ever need to use this to actually reset the counter.
 --
+--   Note however that 'reseed' can be used to implement "explicit"
+--   prediction resistance, per SP 800-90A, by injecting entropy generated
+--   elsewhere into the DRBG.
+--
+--   >>> import qualified System.Entropy as E
+--   >>> entropy <- E.getEntropy 32
 --   >>> reseed entropy addl_bytes drbg
 --   "<reseeded drbg>"
 reseed
