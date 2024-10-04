@@ -12,12 +12,13 @@
 -- [NIST SP-800-90A](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-90Ar1.pdf).
 
 module Crypto.DRBG.HMAC (
+  -- * DRBG and HMAC function types
     DRBG
   , _read_v
   , _read_k
-
   , HMAC
 
+  -- * DRBG interaction
   , new
   , gen
   , reseed
@@ -120,10 +121,10 @@ _read_k (DRBG mut) = do
 --   "<drbg>"
 new
   :: PrimMonad m
-  => HMAC           -- HMAC function
-  -> BS.ByteString  -- entropy
-  -> BS.ByteString  -- nonce
-  -> BS.ByteString  -- personalization string
+  => HMAC           -- ^ HMAC function
+  -> BS.ByteString  -- ^ entropy
+  -> BS.ByteString  -- ^ nonce
+  -> BS.ByteString  -- ^ personalization string
   -> m (DRBG (PrimState m))
 new hmac entropy nonce ps = do
   let !drbg = new_pure hmac entropy nonce ps
@@ -133,8 +134,8 @@ new hmac entropy nonce ps = do
 -- | Reseed a DRBG.
 --
 --   Each DRBG has an internal /reseed counter/ that tracks the number
---   of requests made to the generator (note /requests made/, not /bytes
---   generated/). SP 800-90A specifies that a HMAC-DRBG should support
+--   of requests made to the generator (note /requests made/, not bytes
+--   generated). SP 800-90A specifies that a HMAC-DRBG should support
 --   2 ^ 48 requests before requiring a reseed, so in practice you're
 --   unlikely to ever need to use this to actually reset the counter.
 --
@@ -148,8 +149,8 @@ new hmac entropy nonce ps = do
 --   "<reseeded drbg>"
 reseed
   :: PrimMonad m
-  => BS.ByteString
-  -> BS.ByteString
+  => BS.ByteString        -- ^ entropy to inject
+  -> BS.ByteString        -- ^ additional bytes to inject
   -> DRBG (PrimState m)
   -> m ()
 reseed ent add (DRBG drbg) = P.modifyMutVar' drbg (reseed_pure ent add)
@@ -167,8 +168,8 @@ reseed ent add (DRBG drbg) = P.modifyMutVar' drbg (reseed_pure ent add)
 --   "5f379d16de6f2c6f8a35c56f13f9e5a5"
 gen
   :: PrimMonad m
-  => BS.ByteString
-  -> Word64
+  => BS.ByteString       -- ^ additional bytes to inject
+  -> Word64              -- ^ number of bytes to generate
   -> DRBG (PrimState m)
   -> m BS.ByteString
 gen addl bytes (DRBG mut) = do
@@ -198,10 +199,10 @@ update_pure provided_data (DRBGState h@(HMACEnv hmac _) r v0 k0) =
 
 -- SP 800-90A 10.1.2.3
 new_pure
-  :: (BS.ByteString -> BS.ByteString -> BS.ByteString) -- HMAC function
-  -> BS.ByteString                                     -- entropy
-  -> BS.ByteString                                     -- nonce
-  -> BS.ByteString                                     -- personalization string
+  :: HMAC           -- HMAC function
+  -> BS.ByteString  -- entropy
+  -> BS.ByteString  -- nonce
+  -> BS.ByteString  -- personalization string
   -> DRBGState
 new_pure hmac entropy nonce ps =
     let !drbg = DRBGState (HMACEnv hmac outlen) 1 v0 k0
