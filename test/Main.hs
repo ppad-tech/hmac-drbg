@@ -15,7 +15,7 @@ import qualified Data.ByteString.Base16 as B16
 import Test.Tasty
 import Test.Tasty.HUnit
 
--- CAVS source:
+-- CAVP source:
 --
 -- https://raw.githubusercontent.com/coruus/nist-testvectors/refs/heads/master/csrc.nist.gov/groups/STM/cavp/documents/drbg/drbgtestvectors/drbgvectors_pr_true/HMAC_DRBG.txt
 --
@@ -35,10 +35,10 @@ main = do
         Left _ -> error "ppad-hmac-drbg (test): parse error"
         Right cs -> cs
 
-  defaultMain (cavs_14_3 sha256_cases sha512_cases)
+  defaultMain (cavp_14_3 sha256_cases sha512_cases)
 
-cavs_14_3 :: [Case] -> [Case] -> TestTree
-cavs_14_3 cs ds = testGroup "CAVS 14.3" [
+cavp_14_3 :: [Case] -> [Case] -> TestTree
+cavp_14_3 cs ds = testGroup "CAVP 14.3" [
     testGroup "SHA-256" (fmap (execute SHA256.hmac) cs)
   , testGroup "SHA-512" (fmap (execute SHA512.hmac) ds)
   ]
@@ -95,7 +95,7 @@ execute hmac Case {..} = testCase ("count " <> show caseCount) $ do
   assertEqual "v2" v2 caseV2
   assertEqual "k2" k2 caseK2
 
--- CAVS vector parsers
+-- CAVP vector parsers
 
 hex_digit :: A.Parser Char
 hex_digit = A.satisfy hd where
