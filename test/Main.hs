@@ -6,6 +6,7 @@ module Main where
 
 import Control.Applicative ((<|>))
 import qualified Crypto.Hash.SHA256 as SHA256
+import qualified Crypto.Hash.SHA512 as SHA512
 import qualified Crypto.DRBG.HMAC as DRBG
 import qualified Data.Attoparsec.ByteString.Char8 as A
 import qualified Data.ByteString as BS
@@ -25,14 +26,21 @@ import Test.Tasty.HUnit
 main :: IO ()
 main = do
   sha256_vectors <- BS.readFile "etc/HMAC_DRBG_SHA256.txt"
-  case A.parseOnly parse_sha256_blocks sha256_vectors of
-    Left _ -> error "ppad-hmac-drbg (test): parse error"
-    Right cs ->
-      defaultMain (cavs_14_3 cs)
+  sha512_vectors <- BS.readFile "etc/HMAC_DRBG_SHA512.txt"
+  let sha256_cases = case A.parseOnly parse_sha256_blocks sha256_vectors of
+        Left _ -> error "ppad-hmac-drbg (test): parse error"
+        Right cs -> cs
 
-cavs_14_3 :: [Case] -> TestTree
-cavs_14_3 cs = testGroup "CAVS 14.3" [
+      sha512_cases = case A.parseOnly parse_sha512_blocks sha512_vectors of
+        Left _ -> error "ppad-hmac-drbg (test): parse error"
+        Right cs -> cs
+
+  defaultMain (cavs_14_3 sha256_cases sha512_cases)
+
+cavs_14_3 :: [Case] -> [Case] -> TestTree
+cavs_14_3 cs ds = testGroup "CAVS 14.3" [
     testGroup "SHA-256" (fmap (execute SHA256.hmac) cs)
+  , testGroup "SHA-512" (fmap (execute SHA512.hmac) ds)
   ]
 
 -- test case spec
@@ -151,4 +159,21 @@ parse_sha256_block =
 
 parse_sha256_blocks :: A.Parser [Case]
 parse_sha256_blocks = concat <$> A.many1 parse_sha256_block
+
+parse_sha512_header :: A.Parser ()
+parse_sha512_header =
+       A.string "[SHA-512]" *> A.endOfLine
+    *> A.skipMany1 boring
+    *> A.endOfLine
+  where
+    boring = A.char '[' *> A.skipWhile (/= ']') *> A.char ']' *> A.endOfLine
+
+parse_sha512_block :: A.Parser [Case]
+parse_sha512_block =
+     parse_sha512_header
+  *> parse_cases
+  <* A.endOfLine
+
+parse_sha512_blocks :: A.Parser [Case]
+parse_sha512_blocks = concat <$> A.many1 parse_sha512_block
 

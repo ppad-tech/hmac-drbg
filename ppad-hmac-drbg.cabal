@@ -46,6 +46,7 @@ test-suite hmac-drbg-tests
     , bytestring
     , ppad-hmac-drbg
     , ppad-sha256
+    , ppad-sha512
     , tasty
     , tasty-hunit
 
