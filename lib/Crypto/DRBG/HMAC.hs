@@ -57,6 +57,9 @@ _RESEED_COUNTER = (2 :: Word64) ^ (48 :: Word64)
 --   bytes as needed.
 newtype DRBG s = DRBG (P.MutVar s DRBGState)
 
+instance Show (DRBG s) where
+  show _ = "<drbg>"
+
 -- DRBG environment data and state
 data DRBGState = DRBGState
                  !HMACEnv       -- hmac function & outlen
