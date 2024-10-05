@@ -31,8 +31,7 @@ cavs_14_3 cs = testGroup "CAVS 14.3" [
     testGroup "SHA-256" (fmap (execute SHA256.hmac) cs)
   ]
 
--- test cases
-
+-- test case spec
 data Case = Case {
     caseCount    :: !Int
   -- instantiate
@@ -54,6 +53,37 @@ data Case = Case {
   , caseReturned :: !BS.ByteString
   }
   deriving Show
+
+-- execute test case
+execute :: DRBG.HMAC -> Case -> TestTree
+execute hmac Case {..} = testCase ("count " <> show caseCount) $ do
+  let bytes = fromIntegral (BS.length caseReturned)
+
+  drbg <- DRBG.new hmac caseEntropy0 caseNonce casePs
+  v0 <- DRBG._read_v drbg
+  k0 <- DRBG._read_k drbg
+
+  assertEqual "v0" v0 caseV0
+  assertEqual "k0" k0 caseK0
+
+  DRBG.reseed caseEntropy1 caseAddl1 drbg
+  _ <- DRBG.gen mempty bytes drbg
+  v1 <- DRBG._read_v drbg
+  k1 <- DRBG._read_k drbg
+
+  assertEqual "v1" v1 caseV1
+  assertEqual "k1" k1 caseK1
+
+  DRBG.reseed caseEntropy2 caseAddl2 drbg
+  returned <- DRBG.gen mempty bytes drbg
+  v2 <- DRBG._read_v drbg
+  k2 <- DRBG._read_k drbg
+
+  assertEqual "returned_bytes" returned caseReturned
+  assertEqual "v2" v2 caseV2
+  assertEqual "k2" k2 caseK2
+
+-- CAVS vector parsers
 
 hex_digit :: A.Parser Char
 hex_digit = A.satisfy hd where
@@ -117,34 +147,4 @@ parse_sha256_block =
 
 parse_sha256_blocks :: A.Parser [Case]
 parse_sha256_blocks = concat <$> A.many1 parse_sha256_block
-
-type HMAC = BS.ByteString -> BS.ByteString -> BS.ByteString
-
-execute :: HMAC -> Case -> TestTree
-execute hmac Case {..} = testCase ("count " <> show caseCount) $ do
-  let bytes = fromIntegral (BS.length caseReturned)
-
-  drbg <- DRBG.new hmac caseEntropy0 caseNonce casePs
-  v0 <- DRBG._read_v drbg
-  k0 <- DRBG._read_k drbg
-
-  assertEqual "v0" v0 caseV0
-  assertEqual "k0" k0 caseK0
-
-  DRBG.reseed caseEntropy1 caseAddl1 drbg
-  _ <- DRBG.gen mempty bytes drbg
-  v1 <- DRBG._read_v drbg
-  k1 <- DRBG._read_k drbg
-
-  assertEqual "v1" v1 caseV1
-  assertEqual "k1" k1 caseK1
-
-  DRBG.reseed caseEntropy2 caseAddl2 drbg
-  returned <- DRBG.gen mempty bytes drbg
-  v2 <- DRBG._read_v drbg
-  k2 <- DRBG._read_k drbg
-
-  assertEqual "returned_bytes" returned caseReturned
-  assertEqual "v2" v2 caseV2
-  assertEqual "k2" k2 caseK2
 
