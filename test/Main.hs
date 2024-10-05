@@ -17,6 +17,10 @@ import Test.Tasty.HUnit
 -- CAVS source:
 --
 -- https://raw.githubusercontent.com/coruus/nist-testvectors/refs/heads/master/csrc.nist.gov/groups/STM/cavp/documents/drbg/drbgtestvectors/drbgvectors_pr_true/HMAC_DRBG.txt
+--
+-- spec:
+--
+-- https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/drbg/DRBGVS.pdf
 
 main :: IO ()
 main = do
