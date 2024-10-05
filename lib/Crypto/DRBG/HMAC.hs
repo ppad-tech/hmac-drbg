@@ -68,7 +68,7 @@ data DRBGState = DRBGState
 --    readable
 
 -- | A HMAC function, taking a key as the first argument and the input
---   value as the second, producing a MAC.
+--   value as the second, producing a MAC digest.
 --
 --   >>> import qualified Crypto.Hash.SHA256 as SHA256
 --   >>> :t SHA256.hmac
