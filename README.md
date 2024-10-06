@@ -9,6 +9,7 @@ A sample GHCi session:
 
 ```
   > :set -XOverloadedStrings
+  > import qualified Data.ByteString.Base16 as B16 -- just for pretty rendering
   >
   > -- import qualified
   > import qualified Crypto.DRBG.HMAC as DRBG
@@ -24,7 +25,6 @@ A sample GHCi session:
   > drbg <- DRBG.new SHA256.hmac entropy nonce personalization_string
   >
   > -- use it to generate some bytes
-  > import qualified Data.ByteString.Base16 as B16 -- just for pretty rendering
   >
   > fmap B16.encode (DRBG.gen mempty 32 drbg)
   "e4d17210810c4b343f6eae2c19e3d82395b555294b1b16a85f91dbea67e5f277"
