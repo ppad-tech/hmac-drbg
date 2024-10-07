@@ -8,8 +8,10 @@ as specified by [NIST SP 800-90A][sp800].
 A sample GHCi session:
 
 ```
+  > -- extensions/b16 import just for illustration here; not required for use
   > :set -XOverloadedStrings
-  > import qualified Data.ByteString.Base16 as B16 -- just for pretty rendering
+  > :set -XRankNTypes
+  > import qualified Data.ByteString.Base16 as B16
   >
   > -- import qualified
   > import qualified Crypto.DRBG.HMAC as DRBG
@@ -29,19 +31,19 @@ A sample GHCi session:
   > fmap B16.encode (DRBG.gen mempty 32 drbg)
   "e4d17210810c4b343f6eae2c19e3d82395b555294b1b16a85f91dbea67e5f277"
   >
-  > -- reuse the generator to get more
+  > -- reuse the generator to get more; the state is updated automatically
+  >
   > fmap B16.encode (DRBG.gen mempty 16 drbg)
   "5d867730d99eb5335f16b1d622f03023"
   >
   > -- this DRBG was instantiated in the IO monad:
+  >
   > :t drbg
   drbg :: DRBG.DRBG ghc-prim:GHC.Prim.RealWorld
   >
   > -- but you can also use use ST to keep things pure:
-  > import Control.Monad.ST
   >
-  > -- (just for illustrating stuff here; not actually required for use)
-  > :set -XRankNTypes
+  > import Control.Monad.ST
   >
   > :{
   ghci| let drbg_pure = DRBG.new SHA256.hmac mempty mempty mempty ::
