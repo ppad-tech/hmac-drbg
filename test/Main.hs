@@ -37,11 +37,24 @@ main = do
 
   defaultMain (cavp_14_3 sha256_cases sha512_cases)
 
-cavp_14_3 :: [Case] -> [Case] -> TestTree
+cavp_14_3 :: [CaseBlock] -> [CaseBlock] -> TestTree
 cavp_14_3 cs ds = testGroup "CAVP 14.3" [
-    testGroup "SHA-256" (fmap (execute SHA256.hmac) cs)
-  , testGroup "SHA-512" (fmap (execute SHA512.hmac) ds)
+    testGroup "HMAC-SHA256" (fmap (execute_caseblock SHA256.hmac) cs)
+  , testGroup "HMAC-SHA512" (fmap (execute_caseblock SHA512.hmac) ds)
   ]
+
+data CaseBlock = CaseBlock {
+    cb_blockHeader :: !BlockHeader
+  , cb_cases       :: ![Case]
+  } deriving Show
+
+data BlockHeader = BlockHeader {
+    bh_EntropyInputLen          :: !Int
+  , bh_NonceLen                 :: !Int
+  , bh_PersonalizationStringLen :: !Int
+  , bh_AdditionalInputLen       :: !Int
+  , bh_ReturnedBitsLen          :: !Int
+  } deriving Show
 
 -- test case spec
 data Case = Case {
@@ -63,8 +76,19 @@ data Case = Case {
   , caseV2       :: !BS.ByteString
   , caseK2       :: !BS.ByteString
   , caseReturned :: !BS.ByteString
-  }
-  deriving Show
+  } deriving Show
+
+execute_caseblock :: DRBG.HMAC -> CaseBlock -> TestTree
+execute_caseblock hmac CaseBlock {..} =
+    testGroup msg (fmap (execute hmac) cb_cases)
+  where
+    BlockHeader {..} = cb_blockHeader
+    msg = "bitlens: " <>
+          "ent " <> show bh_EntropyInputLen <> " " <>
+          "non " <> show bh_NonceLen <> " " <>
+          "per " <> show bh_PersonalizationStringLen <> " " <>
+          "add " <> show bh_AdditionalInputLen <> " " <>
+          "ret " <> show bh_ReturnedBitsLen
 
 -- execute test case
 execute :: DRBG.HMAC -> Case -> TestTree
@@ -143,37 +167,43 @@ parse_case = do
 parse_cases :: A.Parser [Case]
 parse_cases = parse_case `A.sepBy` A.endOfLine
 
-parse_sha256_header :: A.Parser ()
-parse_sha256_header =
-       A.string "[SHA-256]" *> A.endOfLine
-    *> A.skipMany1 boring
-    *> A.endOfLine
-  where
-    boring = A.char '[' *> A.skipWhile (/= ']') *> A.char ']' *> A.endOfLine
+parse_header :: BS.ByteString -> A.Parser BlockHeader
+parse_header sha = do
+    A.string ("[" <> sha <> "]") *> A.endOfLine
+    A.string "[PredictionResistance = True]" *> A.endOfLine
+    bh_EntropyInputLen <-
+      A.string "[EntropyInputLen = " *> A.decimal <* A.string "]" <* A.endOfLine
+    bh_NonceLen <-
+      A.string "[NonceLen = " *> A.decimal <* A.string "]" <* A.endOfLine
+    bh_PersonalizationStringLen <-
+         A.string "[PersonalizationStringLen = " *> A.decimal <* A.string "]"
+      <* A.endOfLine
+    bh_AdditionalInputLen <-
+         A.string "[AdditionalInputLen = " *> A.decimal <* A.string "]"
+      <* A.endOfLine
+    bh_ReturnedBitsLen <-
+         A.string "[ReturnedBitsLen = " *> A.decimal <* A.string "]"
+      <* A.endOfLine
+    A.endOfLine
+    pure BlockHeader {..}
 
-parse_sha256_block :: A.Parser [Case]
-parse_sha256_block =
-     parse_sha256_header
-  *> parse_cases
-  <* A.endOfLine
+parse_sha256_block :: A.Parser CaseBlock
+parse_sha256_block = do
+  cb_blockHeader <- parse_header "SHA-256"
+  cb_cases <- parse_cases
+  A.endOfLine
+  pure CaseBlock {..}
 
-parse_sha256_blocks :: A.Parser [Case]
-parse_sha256_blocks = concat <$> A.many1 parse_sha256_block
+parse_sha256_blocks :: A.Parser [CaseBlock]
+parse_sha256_blocks = A.many1 parse_sha256_block
 
-parse_sha512_header :: A.Parser ()
-parse_sha512_header =
-       A.string "[SHA-512]" *> A.endOfLine
-    *> A.skipMany1 boring
-    *> A.endOfLine
-  where
-    boring = A.char '[' *> A.skipWhile (/= ']') *> A.char ']' *> A.endOfLine
+parse_sha512_block :: A.Parser CaseBlock
+parse_sha512_block = do
+  cb_blockHeader <- parse_header "SHA-512"
+  cb_cases <- parse_cases
+  A.endOfLine
+  pure CaseBlock {..}
 
-parse_sha512_block :: A.Parser [Case]
-parse_sha512_block =
-     parse_sha512_header
-  *> parse_cases
-  <* A.endOfLine
-
-parse_sha512_blocks :: A.Parser [Case]
-parse_sha512_blocks = concat <$> A.many1 parse_sha512_block
+parse_sha512_blocks :: A.Parser [CaseBlock]
+parse_sha512_blocks = A.many1 parse_sha512_block
 
