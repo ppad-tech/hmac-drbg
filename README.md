@@ -106,6 +106,11 @@ This library aims at the maximum security achievable in a
 garbage-collected language under an optimizing compiler such as GHC, in
 which strict constant-timeness can be challenging to achieve.
 
+The HMAC-DRBG implementation within has been tested against the
+NIST DRBGVS vectors available for SHA-256 and SHA-512, using the
+HMAC functions from [ppad-sha256][sh256] and [ppad-sha512][sh512]
+respectively.
+
 If you discover any vulnerabilities, please disclose them via
 security@ppad.tech.
 
