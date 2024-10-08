@@ -135,3 +135,5 @@ to get a REPL for the main library.
 [nixos]: https://nixos.org/
 [flake]: https://nixos.org/manual/nix/unstable/command-ref/new-cli/nix3-flake.html
 [hadoc]: https://docs.ppad.tech/hmac-drbg
+[sh256]: https://git.ppad.tech/sha256
+[sh512]: https://git.ppad.tech/sha512
