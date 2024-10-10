@@ -63,7 +63,7 @@ instance Show (DRBG s) where
 -- DRBG environment data and state
 data DRBGState = DRBGState
                  !HMACEnv       -- hmac function & outlen
-                 !Word64        -- reseed counter
+  {-# UNPACK #-} !Word64        -- reseed counter
   {-# UNPACK #-} !BS.ByteString -- v
   {-# UNPACK #-} !BS.ByteString -- key
 
