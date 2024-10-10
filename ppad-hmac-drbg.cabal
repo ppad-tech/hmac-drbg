@@ -65,4 +65,5 @@ benchmark hmac-drbg-bench
     , criterion
     , ppad-hmac-drbg
     , ppad-sha256
+    , ppad-sha512
 

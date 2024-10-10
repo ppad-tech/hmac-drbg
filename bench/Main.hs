@@ -7,6 +7,7 @@ module Main where
 import Criterion.Main
 import qualified Crypto.DRBG.HMAC as DRBG
 import qualified Crypto.Hash.SHA256 as SHA256
+import qualified Crypto.Hash.SHA512 as SHA512
 
 main :: IO ()
 main = do
@@ -19,6 +20,12 @@ suite drbg =
   bgroup "ppad-hmac-drbg" [
     bgroup "HMAC-SHA256" [
       bench "new" $ whnfAppIO (DRBG.new SHA256.hmac mempty mempty) mempty
+    , bench "reseed" $ whnfAppIO (DRBG.reseed mempty mempty) drbg
+    , bench "gen (32B)"  $ whnfAppIO (DRBG.gen mempty 32) drbg
+    , bench "gen (256B)" $ whnfAppIO (DRBG.gen mempty 256) drbg
+    ]
+  , bgroup "HMAC-SHA512" [
+      bench "new" $ whnfAppIO (DRBG.new SHA512.hmac mempty mempty) mempty
     , bench "reseed" $ whnfAppIO (DRBG.reseed mempty mempty) drbg
     , bench "gen (32B)"  $ whnfAppIO (DRBG.gen mempty 32) drbg
     , bench "gen (256B)" $ whnfAppIO (DRBG.gen mempty 256) drbg
