@@ -55,6 +55,13 @@ _RESEED_COUNTER = (2 :: Word64) ^ (48 :: Word64)
 --
 --   Create a DRBG with 'new', and then use and reuse it to generate
 --   bytes as needed.
+--
+--   >>> import qualified Crypto.Hash.SHA256 as SHA256
+--   >>> drbg <- new SHA256.hmac entropy nonce personalization_string
+--   >>> bytes0 <- gen addl_bytes 16 drbg
+--   >>> bytes1 <- gen addl_bytes 16 drbg
+--   >>> drbg
+--   "<drbg>"
 newtype DRBG s = DRBG (P.MutVar s DRBGState)
 
 instance Show (DRBG s) where
@@ -127,6 +134,29 @@ new hmac entropy nonce ps = do
   mut <- P.newMutVar drbg
   pure (DRBG mut)
 
+-- | Generate bytes from a DRBG, optionally injecting additional bytes
+--   per SP 800-90A.
+--
+--   >>> import qualified Data.ByteString.Base16 as B16
+--   >>> drbg <- new SHA256.hmac entropy nonce personalization_string
+--   >>> bytes0 <- gen addl_bytes 16 drbg
+--   >>> bytes1 <- gen addl_bytes 16 drbg
+--   >>> B16.encode bytes0
+--   "938d6ca6d0b797f7b3c653349d6e3135"
+--   >>> B16.encode bytes1
+--   "5f379d16de6f2c6f8a35c56f13f9e5a5"
+gen
+  :: PrimMonad m
+  => BS.ByteString       -- ^ additional bytes to inject
+  -> Word64              -- ^ number of bytes to generate
+  -> DRBG (PrimState m)
+  -> m BS.ByteString
+gen addl bytes (DRBG mut) = do
+  drbg0 <- P.readMutVar mut
+  let !(Pair bs drbg1) = gen_pure addl bytes drbg0
+  P.writeMutVar mut drbg1
+  pure bs
+
 -- | Reseed a DRBG.
 --
 --   Each DRBG has an internal /reseed counter/ that tracks the number
@@ -150,29 +180,6 @@ reseed
   -> DRBG (PrimState m)
   -> m ()
 reseed ent add (DRBG drbg) = P.modifyMutVar' drbg (reseed_pure ent add)
-
--- | Generate bytes from a DRBG, optionally injecting additional bytes
---   per SP 800-90A.
---
---   >>> import qualified Data.ByteString.Base16 as B16
---   >>> drbg <- new SHA256.hmac entropy nonce personalization_string
---   >>> bytes0 <- gen addl_bytes 16 drbg
---   >>> bytes1 <- gen addl_bytes 16 drbg
---   >>> B16.encode bytes0
---   "938d6ca6d0b797f7b3c653349d6e3135"
---   >>> B16.encode bytes1
---   "5f379d16de6f2c6f8a35c56f13f9e5a5"
-gen
-  :: PrimMonad m
-  => BS.ByteString       -- ^ additional bytes to inject
-  -> Word64              -- ^ number of bytes to generate
-  -> DRBG (PrimState m)
-  -> m BS.ByteString
-gen addl bytes (DRBG mut) = do
-  drbg0 <- P.readMutVar mut
-  let !(Pair bs drbg1) = gen_pure addl bytes drbg0
-  P.writeMutVar mut drbg1
-  pure bs
 
 -- pure drbg interaction ------------------------------------------------------
 
