@@ -104,7 +104,7 @@ Current benchmark figures on my mid-2020 MacBook Air look like (use
 
 This library aims at the maximum security achievable in a
 garbage-collected language under an optimizing compiler such as GHC, in
-which strict constant-timeness can be challenging to achieve.
+which strict constant-timeness can be [challenging to achieve][const].
 
 The HMAC-DRBG implementation within has been tested against the
 NIST DRBGVS vectors available for SHA-256 and SHA-512, using the
@@ -137,3 +137,4 @@ to get a REPL for the main library.
 [hadoc]: https://docs.ppad.tech/hmac-drbg
 [sh256]: https://git.ppad.tech/sha256
 [sh512]: https://git.ppad.tech/sha512
+[const]: https://www.chosenplaintext.ca/articles/beginners-guide-constant-time-cryptography.html
