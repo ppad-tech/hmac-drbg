@@ -1,7 +1,6 @@
 {-# OPTIONS_HADDOCK prune #-}
 {-# OPTIONS_GHC -funbox-small-strict-fields #-}
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE LambdaCase #-}
 
 -- |
 -- Module: Crypto.DRBG.HMAC
