@@ -27,6 +27,8 @@ module Crypto.DRBG.HMAC (
 import Control.Monad.Primitive (PrimMonad, PrimState)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Builder as BSB
+import qualified Data.ByteString.Builder.Extra as BE
+import qualified Data.ByteString.Internal as BI
 import qualified Data.Primitive.MutVar as P
 import Data.Word (Word64)
 
@@ -36,9 +38,14 @@ fi :: (Integral a, Num b) => a -> b
 fi = fromIntegral
 {-# INLINE fi #-}
 
-toStrict :: BSB.Builder -> BS.ByteString
-toStrict = BS.toStrict . BSB.toLazyByteString
-{-# INLINE toStrict #-}
+to_strict :: BSB.Builder -> BS.ByteString
+to_strict = BS.toStrict . BSB.toLazyByteString
+{-# INLINE to_strict #-}
+
+to_strict_small :: BSB.Builder -> BS.ByteString
+to_strict_small = BS.toStrict . BE.toLazyByteStringWith
+  (BE.safeStrategy 128 BE.smallChunkSize) mempty
+{-# INLINE to_strict_small #-}
 
 -- dumb strict pair
 data Pair a b = Pair !a !b
@@ -196,8 +203,12 @@ update_pure provided_data (DRBGState h@(HMACEnv hmac _) r v0 k0) =
                  !v2 = hmac k2 v1
              in  DRBGState h r v2 k2
   where
-    cat bs byte suf = toStrict $
-      BSB.byteString bs <> BSB.word8 byte <> BSB.byteString suf
+    cat bs byte suf@(BI.PS _ _ l) =
+      let bil = BSB.byteString bs <> BSB.word8 byte <> BSB.byteString suf
+      in  if   l < 64
+          then to_strict_small bil
+          else to_strict bil
+    {-# INLINE cat #-}
 
 -- SP 800-90A 10.1.2.3
 new_pure
@@ -247,6 +258,8 @@ gen_pure addl bytes drbg0@(DRBGState h@(HMACEnv hmac outlen) _ _ _)
           in  loop nacc nlen nv
 
       | otherwise =
-          let facc = toStrict acc
+          let facc | bytes < 128 = to_strict_small acc
+                   | otherwise   = to_strict acc
           in  Pair facc (DRBGState h (succ r) vl k1)
+{-# INLINE gen_pure #-}
 
