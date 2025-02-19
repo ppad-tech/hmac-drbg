@@ -1,4 +1,4 @@
-# ppad-hmac-drbg
+# hmac-drbg
 
 [![](https://img.shields.io/hackage/v/ppad-hmac-drbg?color=blue)](https://hackage.haskell.org/package/ppad-hmac-drbg)
 ![](https://img.shields.io/badge/license-MIT-brightgreen)
