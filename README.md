@@ -2,6 +2,7 @@
 
 [![](https://img.shields.io/hackage/v/ppad-hmac-drbg?color=blue)](https://hackage.haskell.org/package/ppad-hmac-drbg)
 ![](https://img.shields.io/badge/license-MIT-brightgreen)
+[![](https://img.shields.io/badge/haddock-hmac-drbg-lightblue)](https://docs.ppad.tech/hmac-drbg)
 
 A pure Haskell implementation of the HMAC-DRBG cryptographically-secure PRNG,
 as specified by [NIST SP 800-90A][sp800].
