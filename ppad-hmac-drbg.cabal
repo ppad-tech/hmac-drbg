@@ -42,8 +42,8 @@ test-suite hmac-drbg-tests
   build-depends:
       attoparsec
     , base
-    , base16-bytestring
     , bytestring
+    , ppad-base16
     , ppad-hmac-drbg
     , ppad-sha256
     , ppad-sha512

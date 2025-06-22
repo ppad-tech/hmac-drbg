@@ -71,37 +71,33 @@ Haddocks (API documentation, etc.) are hosted at
 The aim is best-in-class performance for pure, highly-auditable Haskell
 code.
 
-Current benchmark figures on my mid-2020 MacBook Air look like (use
+Current benchmark figures on an M4 Silicon MacBook Air look like (use
 `cabal bench` to run the benchmark suite):
 
 ```
   benchmarking ppad-hmac-drbg/HMAC-SHA256/new
-  time                 20.86 μs   (20.78 μs .. 20.94 μs)
+  time                 10.46 μs   (10.45 μs .. 10.46 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 20.82 μs   (20.72 μs .. 20.93 μs)
-  std dev              370.6 ns   (299.3 ns .. 456.6 ns)
-  variance introduced by outliers: 15% (moderately inflated)
+  mean                 10.44 μs   (10.44 μs .. 10.46 μs)
+  std dev              28.45 ns   (19.59 ns .. 46.15 ns)
 
   benchmarking ppad-hmac-drbg/HMAC-SHA256/reseed
-  time                 13.98 μs   (13.83 μs .. 14.18 μs)
-                       0.999 R²   (0.998 R² .. 1.000 R²)
-  mean                 13.89 μs   (13.79 μs .. 14.03 μs)
-  std dev              398.9 ns   (296.7 ns .. 580.8 ns)
-  variance introduced by outliers: 32% (moderately inflated)
+  time                 6.917 μs   (6.900 μs .. 6.934 μs)
+                       1.000 R²   (1.000 R² .. 1.000 R²)
+  mean                 6.908 μs   (6.893 μs .. 6.921 μs)
+  std dev              47.40 ns   (27.59 ns .. 84.31 ns)
 
   benchmarking ppad-hmac-drbg/HMAC-SHA256/gen (32B)
-  time                 21.10 μs   (20.95 μs .. 21.25 μs)
-                       1.000 R²   (0.999 R² .. 1.000 R²)
-  mean                 21.19 μs   (21.06 μs .. 21.36 μs)
-  std dev              509.2 ns   (390.7 ns .. 812.2 ns)
-  variance introduced by outliers: 24% (moderately inflated)
+  time                 10.55 μs   (10.52 μs .. 10.59 μs)
+                       1.000 R²   (1.000 R² .. 1.000 R²)
+  mean                 10.51 μs   (10.50 μs .. 10.53 μs)
+  std dev              44.48 ns   (25.76 ns .. 78.90 ns)
 
   benchmarking ppad-hmac-drbg/HMAC-SHA256/gen (256B)
-  time                 68.17 μs   (67.62 μs .. 68.82 μs)
-                       1.000 R²   (0.999 R² .. 1.000 R²)
-  mean                 68.74 μs   (68.42 μs .. 69.09 μs)
-  std dev              1.172 μs   (1.022 μs .. 1.410 μs)
-  variance introduced by outliers: 12% (moderately inflated)
+  time                 36.08 μs   (34.94 μs .. 37.26 μs)
+                       0.996 R²   (0.994 R² .. 1.000 R²)
+  mean                 35.30 μs   (35.09 μs .. 35.96 μs)
+  std dev              1.085 μs   (488.0 ns .. 2.012 μs)
 ```
 
 ## Security

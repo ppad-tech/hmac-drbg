@@ -129,7 +129,10 @@ hex_digit = A.satisfy hd where
     || (c >= 'A' && c <= 'F')
 
 parse_hex :: A.Parser BS.ByteString
-parse_hex = (B16.decodeLenient . B8.pack) <$> A.many1 hex_digit
+parse_hex = (decodeLenient . B8.pack) <$> A.many1 hex_digit where
+  decodeLenient bs = case B16.decode bs of
+    Nothing -> error "bang"
+    Just v -> v
 
 parse_kv :: BS.ByteString -> A.Parser BS.ByteString
 parse_kv k =
