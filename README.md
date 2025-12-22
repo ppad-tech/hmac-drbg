@@ -76,29 +76,33 @@ Current benchmark figures on an M4 Silicon MacBook Air look like (use
 
 ```
   benchmarking ppad-hmac-drbg/HMAC-SHA256/new
-  time                 10.46 μs   (10.45 μs .. 10.46 μs)
+  time                 2.771 μs   (2.767 μs .. 2.775 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 10.44 μs   (10.44 μs .. 10.46 μs)
-  std dev              28.45 ns   (19.59 ns .. 46.15 ns)
+  mean                 2.768 μs   (2.764 μs .. 2.772 μs)
+  std dev              12.21 ns   (10.10 ns .. 14.90 ns)
 
   benchmarking ppad-hmac-drbg/HMAC-SHA256/reseed
-  time                 6.917 μs   (6.900 μs .. 6.934 μs)
+  time                 1.777 μs   (1.776 μs .. 1.778 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 6.908 μs   (6.893 μs .. 6.921 μs)
-  std dev              47.40 ns   (27.59 ns .. 84.31 ns)
+  mean                 1.777 μs   (1.776 μs .. 1.778 μs)
+  std dev              2.260 ns   (1.699 ns .. 3.099 ns)
 
   benchmarking ppad-hmac-drbg/HMAC-SHA256/gen (32B)
-  time                 10.55 μs   (10.52 μs .. 10.59 μs)
+  time                 2.756 μs   (2.753 μs .. 2.759 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 10.51 μs   (10.50 μs .. 10.53 μs)
-  std dev              44.48 ns   (25.76 ns .. 78.90 ns)
+  mean                 2.757 μs   (2.754 μs .. 2.760 μs)
+  std dev              9.806 ns   (6.361 ns .. 16.87 ns)
 
   benchmarking ppad-hmac-drbg/HMAC-SHA256/gen (256B)
-  time                 36.08 μs   (34.94 μs .. 37.26 μs)
-                       0.996 R²   (0.994 R² .. 1.000 R²)
-  mean                 35.30 μs   (35.09 μs .. 35.96 μs)
-  std dev              1.085 μs   (488.0 ns .. 2.012 μs)
+  time                 8.967 μs   (8.959 μs .. 8.980 μs)
+                       1.000 R²   (1.000 R² .. 1.000 R²)
+  mean                 8.970 μs   (8.965 μs .. 8.985 μs)
+  std dev              26.04 ns   (12.30 ns .. 52.00 ns)
 ```
+
+You should compile with the 'llvm' flag (and ensure that
+[ppad-sha256][sh256] has been compiled with the 'llvm' flag) for
+maximum performance.
 
 ## Security
 
