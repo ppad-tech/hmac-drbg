@@ -76,28 +76,28 @@ Current benchmark figures on an M4 Silicon MacBook Air look like (use
 
 ```
   benchmarking ppad-hmac-drbg/HMAC-SHA256/new
-  time                 2.228 μs   (2.226 μs .. 2.231 μs)
+  time                 655.0 ns   (654.5 ns .. 655.5 ns)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 2.240 μs   (2.236 μs .. 2.246 μs)
-  std dev              18.12 ns   (13.79 ns .. 26.66 ns)
+  mean                 655.3 ns   (655.0 ns .. 655.7 ns)
+  std dev              1.283 ns   (1.052 ns .. 1.567 ns)
 
   benchmarking ppad-hmac-drbg/HMAC-SHA256/reseed
-  time                 1.463 μs   (1.461 μs .. 1.464 μs)
+  time                 428.6 ns   (428.4 ns .. 429.0 ns)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 1.462 μs   (1.461 μs .. 1.464 μs)
-  std dev              4.128 ns   (2.494 ns .. 6.915 ns)
+  mean                 429.7 ns   (429.3 ns .. 431.0 ns)
+  std dev              2.365 ns   (1.310 ns .. 4.581 ns)
 
   benchmarking ppad-hmac-drbg/HMAC-SHA256/gen (32B)
-  time                 2.239 μs   (2.235 μs .. 2.245 μs)
+  time                 707.5 ns   (707.2 ns .. 707.9 ns)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 2.241 μs   (2.238 μs .. 2.247 μs)
-  std dev              16.14 ns   (11.39 ns .. 23.78 ns)
+  mean                 707.8 ns   (707.5 ns .. 708.2 ns)
+  std dev              1.043 ns   (859.5 ps .. 1.334 ns)
 
   benchmarking ppad-hmac-drbg/HMAC-SHA256/gen (256B)
-  time                 7.282 μs   (7.277 μs .. 7.290 μs)
+  time                 2.106 μs   (2.104 μs .. 2.110 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 7.291 μs   (7.286 μs .. 7.299 μs)
-  std dev              20.36 ns   (15.09 ns .. 30.34 ns)
+  mean                 2.111 μs   (2.109 μs .. 2.113 μs)
+  std dev              6.256 ns   (5.144 ns .. 7.439 ns)
 ```
 
 You should compile with the 'llvm' flag (and ensure that
