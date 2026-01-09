@@ -103,7 +103,7 @@ execute hmac Case {..} = testCase ("count " <> show caseCount) $ do
   assertEqual "k0" k0 caseK0
 
   DRBG.reseed caseEntropy1 caseAddl1 drbg
-  _ <- DRBG.gen mempty bytes drbg
+  Right _ <- DRBG.gen mempty bytes drbg
   v1 <- DRBG._read_v drbg
   k1 <- DRBG._read_k drbg
 
@@ -111,7 +111,7 @@ execute hmac Case {..} = testCase ("count " <> show caseCount) $ do
   assertEqual "k1" k1 caseK1
 
   DRBG.reseed caseEntropy2 caseAddl2 drbg
-  returned <- DRBG.gen mempty bytes drbg
+  Right returned <- DRBG.gen mempty bytes drbg
   v2 <- DRBG._read_v drbg
   k2 <- DRBG._read_k drbg
 

@@ -22,14 +22,14 @@ suite drbg256 drbg512 =
     bgroup "HMAC-SHA256" [
       bench "new" $ whnfAppIO (DRBG.new SHA256.hmac mempty mempty) mempty
     , bench "reseed" $ whnfAppIO (DRBG.reseed mempty mempty) drbg256
-    , bench "gen (32B)"  $ nfAppIO (DRBG.gen mempty 32) drbg256
-    , bench "gen (256B)" $ nfAppIO (DRBG.gen mempty 256) drbg256
+    , bench "gen (32B)"  $ whnfAppIO (DRBG.gen mempty 32) drbg256
+    , bench "gen (256B)" $ whnfAppIO (DRBG.gen mempty 256) drbg256
     ]
   , bgroup "HMAC-SHA512" [
       bench "new" $ whnfAppIO (DRBG.new SHA512.hmac mempty mempty) mempty
     , bench "reseed" $ whnfAppIO (DRBG.reseed mempty mempty) drbg512
-    , bench "gen (32B)"  $ nfAppIO (DRBG.gen mempty 32) drbg512
-    , bench "gen (256B)" $ nfAppIO (DRBG.gen mempty 256) drbg512
+    , bench "gen (32B)"  $ whnfAppIO (DRBG.gen mempty 32) drbg512
+    , bench "gen (256B)" $ whnfAppIO (DRBG.gen mempty 256) drbg512
     ]
   ]
 
