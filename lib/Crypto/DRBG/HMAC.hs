@@ -14,9 +14,10 @@
 module Crypto.DRBG.HMAC (
   -- * DRBG and HMAC function types
     DRBG
+  , HMAC
+  , Error(..)
   , _read_v
   , _read_k
-  , HMAC
 
   -- * DRBG interaction
   , new
@@ -52,6 +53,12 @@ data Pair a b = Pair !a !b
   deriving Show
 
 -- types ----------------------------------------------------------------------
+
+-- | A DRBG error.
+data Error =
+    MaxBytesExceeded -- ^ More than 65536 bytes have been requested.
+  | ReseedRequired   -- ^ The DRBG must be reseeded (via 'reseed').
+  deriving (Eq, Show)
 
 -- see SP 800-90A table 2
 _RESEED_COUNTER :: Word64
@@ -143,10 +150,14 @@ new hmac entropy nonce ps = do
 -- | Generate bytes from a DRBG, optionally injecting additional bytes
 --   per SP 800-90A.
 --
+--   Per SP 800-90A, the maximum number of bytes that can be requested
+--   on any invocation is 65536. Larger requests will return
+--   'MaxBytesExceeded'.
+--
 --   >>> import qualified Data.ByteString.Base16 as B16
 --   >>> drbg <- new SHA256.hmac entropy nonce personalization_string
---   >>> bytes0 <- gen addl_bytes 16 drbg
---   >>> bytes1 <- gen addl_bytes 16 drbg
+--   >>> Right bytes0 <- gen addl_bytes 16 drbg
+--   >>> Right bytes1 <- gen addl_bytes 16 drbg
 --   >>> B16.encode bytes0
 --   "938d6ca6d0b797f7b3c653349d6e3135"
 --   >>> B16.encode bytes1
@@ -156,12 +167,14 @@ gen
   => BS.ByteString       -- ^ additional bytes to inject
   -> Word64              -- ^ number of bytes to generate
   -> DRBG (PrimState m)
-  -> m BS.ByteString
+  -> m (Either Error BS.ByteString)
 gen addl bytes (DRBG mut) = do
   drbg0 <- P.readMutVar mut
-  let !(Pair bs drbg1) = gen_pure addl bytes drbg0
-  P.writeMutVar mut drbg1
-  pure bs
+  case gen_pure addl bytes drbg0 of
+    Left e -> pure (Left e)
+    Right !(Pair bs drbg1) -> do
+      P.writeMutVar mut drbg1
+      pure (Right bs)
 
 -- | Reseed a DRBG.
 --
@@ -237,14 +250,15 @@ gen_pure
   :: BS.ByteString
   -> Word64
   -> DRBGState
-  -> Pair BS.ByteString DRBGState
+  -> Either Error (Pair BS.ByteString DRBGState)
 gen_pure addl bytes drbg0@(DRBGState h@(HMACEnv hmac outlen) _ _ _)
-    | r > _RESEED_COUNTER = error "ppad-hmac-drbg: reseed required"
+    | bytes > 0x10000     = Left MaxBytesExceeded
+    | r > _RESEED_COUNTER = Left ReseedRequired
     | otherwise =
         let !(Pair temp drbg1) = loop mempty 0 v1
             returned_bits = BS.take (fi bytes) temp
             drbg = update_pure addl drbg1
-        in  Pair returned_bits drbg
+        in  Right (Pair returned_bits drbg)
   where
     !(DRBGState _ r v1 k1)
       | BS.null addl = drbg0
