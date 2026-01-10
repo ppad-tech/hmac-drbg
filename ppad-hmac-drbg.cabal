@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               ppad-hmac-drbg
-version:            0.2.0
+version:            0.2.1
 synopsis:           HMAC-based deterministic random bit generator
 license:            MIT
 license-file:       LICENSE
@@ -52,8 +52,8 @@ test-suite hmac-drbg-tests
     , bytestring
     , ppad-base16
     , ppad-hmac-drbg
-    , ppad-sha256
-    , ppad-sha512
+    , ppad-sha256 >= 0.3 && < 0.4
+    , ppad-sha512 >= 0.2 && < 0.4
     , tasty
     , tasty-hunit
 
@@ -71,6 +71,6 @@ benchmark hmac-drbg-bench
     , bytestring
     , criterion
     , ppad-hmac-drbg
-    , ppad-sha256
-    , ppad-sha512
+    , ppad-sha256 >= 0.3 && < 0.4
+    , ppad-sha512 >= 0.2 && < 0.4
 

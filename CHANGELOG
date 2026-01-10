@@ -1,5 +1,9 @@
 # Changelog
 
+- 0.2.1 (2026-01-10)
+  * Simply adds bounds to the ppad-sha{256,512} dependencies in the test and
+    benchmark suites.
+
 - 0.2.0 (2026-01-10)
   * In order to better-match the spec, 'gen' now returns an
     'Either Error BS.ByteString'. The new 'Error' value is returned
