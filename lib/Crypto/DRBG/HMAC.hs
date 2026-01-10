@@ -69,8 +69,7 @@ _RESEED_COUNTER = (2 :: Word64) ^ (48 :: Word64)
 --   Create a DRBG with 'new', and then use and reuse it to generate
 --   bytes as needed.
 --
---   >>> import qualified Crypto.Hash.SHA256 as SHA256
---   >>> drbg <- new SHA256.hmac entropy nonce personalization_string
+--   >>> drbg <- new hmac entropy nonce personalization_string
 --   >>> bytes0 <- gen addl_bytes 16 drbg
 --   >>> bytes1 <- gen addl_bytes 16 drbg
 --   >>> drbg
@@ -94,8 +93,9 @@ data DRBGState = DRBGState
 --   value as the second, producing a MAC digest.
 --
 --   >>> import qualified Crypto.Hash.SHA256 as SHA256
---   >>> :t SHA256.hmac
---   SHA256.hmac :: BS.ByteString -> BS.ByteString -> BS.ByteString
+--   >>> let hmac k b = let SHA256.MAC m = SHA256.hmac k b in m
+--   >>> :t hmac
+--   hmac :: BS.ByteString -> BS.ByteString -> BS.ByteString
 type HMAC = BS.ByteString -> BS.ByteString -> BS.ByteString
 
 -- HMAC function and its associated outlength
@@ -133,7 +133,8 @@ _read_k (DRBG mut) = do
 --   The DRBG is returned in any 'PrimMonad', e.g. 'ST' or 'IO'.
 --
 --   >>> import qualified Crypto.Hash.SHA256 as SHA256
---   >>> new SHA256.hmac entropy nonce personalization_string
+--   >>> let hmac k b = let SHA256.MAC m = SHA256.hmac k b in m
+--   >>> new hmac entropy nonce personalization_string
 --   "<drbg>"
 new
   :: PrimMonad m
@@ -155,7 +156,7 @@ new hmac entropy nonce ps = do
 --   'MaxBytesExceeded'.
 --
 --   >>> import qualified Data.ByteString.Base16 as B16
---   >>> drbg <- new SHA256.hmac entropy nonce personalization_string
+--   >>> drbg <- new hmac entropy nonce personalization_string
 --   >>> Right bytes0 <- gen addl_bytes 16 drbg
 --   >>> Right bytes1 <- gen addl_bytes 16 drbg
 --   >>> B16.encode bytes0

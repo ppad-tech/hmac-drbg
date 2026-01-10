@@ -37,10 +37,18 @@ main = do
 
   defaultMain (cavp_14_3 sha256_cases sha512_cases)
 
+hmac_sha256 :: BS.ByteString -> BS.ByteString -> BS.ByteString
+hmac_sha256 k b = case SHA256.hmac k b of
+  SHA256.MAC m -> m
+
+hmac_sha512 :: BS.ByteString -> BS.ByteString -> BS.ByteString
+hmac_sha512 k b = case SHA512.hmac k b of
+  SHA512.MAC m -> m
+
 cavp_14_3 :: [CaseBlock] -> [CaseBlock] -> TestTree
 cavp_14_3 cs ds = testGroup "CAVP 14.3" [
-    testGroup "HMAC-SHA256" (fmap (execute_caseblock SHA256.hmac) cs)
-  , testGroup "HMAC-SHA512" (fmap (execute_caseblock SHA512.hmac) ds)
+    testGroup "HMAC-SHA256" (fmap (execute_caseblock hmac_sha256) cs)
+  , testGroup "HMAC-SHA512" (fmap (execute_caseblock hmac_sha512) ds)
   ]
 
 data CaseBlock = CaseBlock {
