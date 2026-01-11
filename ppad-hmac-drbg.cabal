@@ -74,3 +74,21 @@ benchmark hmac-drbg-bench
     , ppad-sha256 >= 0.3 && < 0.4
     , ppad-sha512 >= 0.2 && < 0.4
 
+benchmark hmac-drbg-weigh
+  type:                exitcode-stdio-1.0
+  default-language:    Haskell2010
+  hs-source-dirs:      bench
+  main-is:             Weight.hs
+
+  ghc-options:
+    -rtsopts -O2 -Wall
+
+  build-depends:
+      base
+    , bytestring
+    , deepseq
+    , ppad-hmac-drbg
+    , ppad-sha256 >= 0.3 && < 0.4
+    , ppad-sha512 >= 0.2 && < 0.4
+    , weigh
+
