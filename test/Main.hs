@@ -5,9 +5,7 @@
 module Main where
 
 import Control.Applicative ((<|>))
-import qualified Crypto.Hash.SHA256 as SHA256
-import qualified Crypto.Hash.SHA512 as SHA512
-import qualified Crypto.DRBG.HMAC as DRBG
+import qualified Crypto.DRBG.HMAC.SHA256 as DRBG
 import qualified Data.Attoparsec.ByteString.Char8 as A
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -26,29 +24,21 @@ import Test.Tasty.HUnit
 main :: IO ()
 main = do
   sha256_vectors <- BS.readFile "etc/HMAC_DRBG_SHA256.txt"
-  sha512_vectors <- BS.readFile "etc/HMAC_DRBG_SHA512.txt"
+  -- sha512_vectors <- BS.readFile "etc/HMAC_DRBG_SHA512.txt"
   let sha256_cases = case A.parseOnly parse_sha256_blocks sha256_vectors of
         Left _ -> error "ppad-hmac-drbg (test): parse error"
         Right cs -> cs
 
-      sha512_cases = case A.parseOnly parse_sha512_blocks sha512_vectors of
-        Left _ -> error "ppad-hmac-drbg (test): parse error"
-        Right cs -> cs
+      -- sha512_cases = case A.parseOnly parse_sha512_blocks sha512_vectors of
+      --   Left _ -> error "ppad-hmac-drbg (test): parse error"
+      --   Right cs -> cs
 
-  defaultMain (cavp_14_3 sha256_cases sha512_cases)
+  defaultMain (cavp_14_3 sha256_cases)
 
-hmac_sha256 :: BS.ByteString -> BS.ByteString -> BS.ByteString
-hmac_sha256 k b = case SHA256.hmac k b of
-  SHA256.MAC m -> m
-
-hmac_sha512 :: BS.ByteString -> BS.ByteString -> BS.ByteString
-hmac_sha512 k b = case SHA512.hmac k b of
-  SHA512.MAC m -> m
-
-cavp_14_3 :: [CaseBlock] -> [CaseBlock] -> TestTree
-cavp_14_3 cs ds = testGroup "CAVP 14.3" [
-    testGroup "HMAC-SHA256" (fmap (execute_caseblock hmac_sha256) cs)
-  , testGroup "HMAC-SHA512" (fmap (execute_caseblock hmac_sha512) ds)
+cavp_14_3 :: [CaseBlock] -> TestTree
+cavp_14_3 cs = testGroup "CAVP 14.3" [
+    testGroup "HMAC-SHA256" (fmap execute_caseblock cs)
+  -- , testGroup "HMAC-SHA512" (fmap execute_caseblock ds)
   ]
 
 data CaseBlock = CaseBlock {
@@ -86,9 +76,9 @@ data Case = Case {
   , caseReturned :: !BS.ByteString
   } deriving Show
 
-execute_caseblock :: DRBG.HMAC -> CaseBlock -> TestTree
-execute_caseblock hmac CaseBlock {..} =
-    testGroup msg (fmap (execute hmac) cb_cases)
+execute_caseblock :: CaseBlock -> TestTree
+execute_caseblock CaseBlock {..} =
+    testGroup msg (fmap execute cb_cases)
   where
     BlockHeader {..} = cb_blockHeader
     msg = "bitlens: " <>
@@ -99,27 +89,27 @@ execute_caseblock hmac CaseBlock {..} =
           "ret " <> show bh_ReturnedBitsLen
 
 -- execute test case
-execute :: DRBG.HMAC -> Case -> TestTree
-execute hmac Case {..} = testCase ("count " <> show caseCount) $ do
+execute :: Case -> TestTree
+execute Case {..} = testCase ("count " <> show caseCount) $ do
   let bytes = fromIntegral (BS.length caseReturned)
 
-  drbg <- DRBG.new hmac caseEntropy0 caseNonce casePs
+  drbg <- DRBG.new caseEntropy0 caseNonce casePs
   v0 <- DRBG._read_v drbg
   k0 <- DRBG._read_k drbg
 
   assertEqual "v0" v0 caseV0
   assertEqual "k0" k0 caseK0
 
-  DRBG.reseed caseEntropy1 caseAddl1 drbg
-  Right _ <- DRBG.gen mempty bytes drbg
+  DRBG.reseed drbg caseEntropy1 caseAddl1
+  Right _ <- DRBG.gen drbg mempty bytes
   v1 <- DRBG._read_v drbg
   k1 <- DRBG._read_k drbg
 
   assertEqual "v1" v1 caseV1
   assertEqual "k1" k1 caseK1
 
-  DRBG.reseed caseEntropy2 caseAddl2 drbg
-  Right returned <- DRBG.gen mempty bytes drbg
+  DRBG.reseed drbg caseEntropy2 caseAddl2
+  Right returned <- DRBG.gen drbg mempty bytes
   v2 <- DRBG._read_v drbg
   k2 <- DRBG._read_k drbg
 
@@ -208,13 +198,13 @@ parse_sha256_block = do
 parse_sha256_blocks :: A.Parser [CaseBlock]
 parse_sha256_blocks = A.many1 parse_sha256_block
 
-parse_sha512_block :: A.Parser CaseBlock
-parse_sha512_block = do
-  cb_blockHeader <- parse_header "SHA-512"
-  cb_cases <- parse_cases
-  A.endOfLine
-  pure CaseBlock {..}
+-- parse_sha512_block :: A.Parser CaseBlock
+-- parse_sha512_block = do
+--   cb_blockHeader <- parse_header "SHA-512"
+--   cb_cases <- parse_cases
+--   A.endOfLine
+--   pure CaseBlock {..}
 
-parse_sha512_blocks :: A.Parser [CaseBlock]
-parse_sha512_blocks = A.many1 parse_sha512_block
+-- parse_sha512_blocks :: A.Parser [CaseBlock]
+-- parse_sha512_blocks = A.many1 parse_sha512_block
 

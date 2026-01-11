@@ -76,28 +76,30 @@ Current benchmark figures on an M4 Silicon MacBook Air look like (use
 
 ```
   benchmarking ppad-hmac-drbg/HMAC-SHA256/new
-  time                 655.0 ns   (654.5 ns .. 655.5 ns)
-                       1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 655.3 ns   (655.0 ns .. 655.7 ns)
-  std dev              1.283 ns   (1.052 ns .. 1.567 ns)
+  time                 225.2 ns   (224.3 ns .. 226.4 ns)
+                       0.999 R²   (0.998 R² .. 1.000 R²)
+  mean                 233.4 ns   (227.9 ns .. 241.8 ns)
+  std dev              23.42 ns   (12.58 ns .. 34.87 ns)
+  variance introduced by outliers: 90% (severely inflated)
 
   benchmarking ppad-hmac-drbg/HMAC-SHA256/reseed
-  time                 428.6 ns   (428.4 ns .. 429.0 ns)
+  time                 211.3 ns   (210.6 ns .. 211.9 ns)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 429.7 ns   (429.3 ns .. 431.0 ns)
-  std dev              2.365 ns   (1.310 ns .. 4.581 ns)
+  mean                 210.7 ns   (210.3 ns .. 211.1 ns)
+  std dev              1.381 ns   (1.133 ns .. 1.766 ns)
 
   benchmarking ppad-hmac-drbg/HMAC-SHA256/gen (32B)
-  time                 707.5 ns   (707.2 ns .. 707.9 ns)
-                       1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 707.8 ns   (707.5 ns .. 708.2 ns)
-  std dev              1.043 ns   (859.5 ps .. 1.334 ns)
+  time                 367.3 ns   (366.4 ns .. 368.3 ns)
+                       0.999 R²   (0.999 R² .. 1.000 R²)
+  mean                 375.9 ns   (370.3 ns .. 388.7 ns)
+  std dev              28.42 ns   (13.66 ns .. 55.18 ns)
+  variance introduced by outliers: 83% (severely inflated)
 
   benchmarking ppad-hmac-drbg/HMAC-SHA256/gen (256B)
-  time                 2.106 μs   (2.104 μs .. 2.110 μs)
+  time                 1.472 μs   (1.468 μs .. 1.476 μs)
                        1.000 R²   (1.000 R² .. 1.000 R²)
-  mean                 2.111 μs   (2.109 μs .. 2.113 μs)
-  std dev              6.256 ns   (5.144 ns .. 7.439 ns)
+  mean                 1.470 μs   (1.465 μs .. 1.474 μs)
+  std dev              15.77 ns   (12.15 ns .. 21.36 ns)
 ```
 
 You should compile with the 'llvm' flag (and ensure that
