@@ -28,6 +28,7 @@ module Crypto.DRBG.HMAC.SHA512 (
   , _read_k
   ) where
 
+import Crypto.DRBG.HMAC.Internal (Error(..), _RESEED_COUNTER, _MAX_BYTES)
 import qualified Crypto.Hash.SHA512 as SHA512
 import Crypto.Hash.SHA512.Internal (Registers(..))
 import qualified Crypto.Hash.SHA512.Internal as SHA512 (cat)
@@ -42,17 +43,6 @@ import qualified GHC.Word
 import qualified Foreign.Ptr as FP
 
 -- api ------------------------------------------------------------------------
-
--- | A DRBG error.
-data Error =
-    MaxBytesExceeded -- ^ More than 65536 bytes have been requested.
-  | ReseedRequired   -- ^ The DRBG must be reseeded (via 'reseed').
-  deriving (Eq, Show)
-
--- see SP 800-90A table 2
-_RESEED_COUNTER :: Word64
-_RESEED_COUNTER = (2 :: Word64) ^ (48 :: Word64)
-{-# NOINLINE _RESEED_COUNTER #-}
 
 -- | A deterministic random bit generator (DRBG).
 --
@@ -147,7 +137,7 @@ gen
   -> Word64
   -> m (Either Error BS.ByteString)
 gen (DRBG drbg) addl@(BI.PS _ _ l) bytes
-  | bytes > 0x10000 = pure $! Left MaxBytesExceeded
+  | bytes > _MAX_BYTES = pure $! Left MaxBytesExceeded
   | otherwise = do
       ctr <- read_counter drbg
       if   ctr > _RESEED_COUNTER

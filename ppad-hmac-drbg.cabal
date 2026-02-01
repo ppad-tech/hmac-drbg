@@ -31,7 +31,8 @@ library
   if flag(llvm)
     ghc-options: -fllvm -O2
   exposed-modules:
-      Crypto.DRBG.HMAC.SHA256
+      Crypto.DRBG.HMAC.Internal
+    , Crypto.DRBG.HMAC.SHA256
     , Crypto.DRBG.HMAC.SHA512
   build-depends:
       base >= 4.9 && < 5
