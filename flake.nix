@@ -14,11 +14,9 @@
       inputs.ppad-nixpkgs.follows = "ppad-nixpkgs";
     };
     ppad-sha256 = {
-      # XX for development
-      url = "path:/Users/jtobin/src/ppad/sha256";
-      # type = "git";
-      # url  = "git://git.ppad.tech/sha256.git";
-      # ref  = "master";
+      type = "git";
+      url  = "git://git.ppad.tech/sha256.git";
+      ref  = "master";
       inputs.ppad-base16.follows = "ppad-base16";
       inputs.ppad-nixpkgs.follows = "ppad-nixpkgs";
     };

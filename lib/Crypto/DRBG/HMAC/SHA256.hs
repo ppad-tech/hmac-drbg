@@ -220,7 +220,7 @@ gen_loop drbg k0 v0 bytes = loop mempty v0 0 where
         write_v drbg v
         pure acc
     | otherwise = do
-        Prim.unsafeIOToPrim $ SHA256.hmac_rr_unsafe vp sp k0 v
+        Prim.unsafeIOToPrim $ SHA256._hmac_rr vp sp k0 v
         !(GHC.Word.W32# nv0) <- PA.readPrimArray drbg 10
         !(GHC.Word.W32# nv1) <- PA.readPrimArray drbg 11
         !(GHC.Word.W32# nv2) <- PA.readPrimArray drbg 12
@@ -262,7 +262,7 @@ update drbg provided_data@(BI.PS _ _ l) = do
       !kp = PA.mutablePrimArrayContents drbg `FP.plusPtr` 08 --  2 * 4
       !vp = PA.mutablePrimArrayContents drbg `FP.plusPtr` 40 -- 10 * 4
       !sp = PA.mutablePrimArrayContents drbg `FP.plusPtr` 72 -- 18 * 4
-  Prim.unsafeIOToPrim $ SHA256.hmac_rsb_unsafe kp sp k0 v0 0x00 provided_data
+  Prim.unsafeIOToPrim $ SHA256._hmac_rsb kp sp k0 v0 0x00 provided_data
   !(GHC.Word.W32# k10) <- PA.readPrimArray drbg 02
   !(GHC.Word.W32# k11) <- PA.readPrimArray drbg 03
   !(GHC.Word.W32# k12) <- PA.readPrimArray drbg 04
@@ -272,7 +272,7 @@ update drbg provided_data@(BI.PS _ _ l) = do
   !(GHC.Word.W32# k16) <- PA.readPrimArray drbg 08
   !(GHC.Word.W32# k17) <- PA.readPrimArray drbg 09
   let !k1 = Registers (# k10, k11, k12, k13, k14, k15, k16, k17 #)
-  Prim.unsafeIOToPrim $ SHA256.hmac_rr_unsafe vp sp k1 v0
+  Prim.unsafeIOToPrim $ SHA256._hmac_rr vp sp k1 v0
   if   l == 0
   then pure ()
   else do
@@ -285,7 +285,7 @@ update drbg provided_data@(BI.PS _ _ l) = do
     !(GHC.Word.W32# v16) <- PA.readPrimArray drbg 16
     !(GHC.Word.W32# v17) <- PA.readPrimArray drbg 17
     let !v1 = Registers (# v10, v11, v12, v13, v14, v15, v16, v17 #)
-    Prim.unsafeIOToPrim $ SHA256.hmac_rsb_unsafe kp sp k1 v1 0x01 provided_data
+    Prim.unsafeIOToPrim $ SHA256._hmac_rsb kp sp k1 v1 0x01 provided_data
     !(GHC.Word.W32# k20) <- PA.readPrimArray drbg 02
     !(GHC.Word.W32# k21) <- PA.readPrimArray drbg 03
     !(GHC.Word.W32# k22) <- PA.readPrimArray drbg 04
@@ -295,7 +295,7 @@ update drbg provided_data@(BI.PS _ _ l) = do
     !(GHC.Word.W32# k26) <- PA.readPrimArray drbg 08
     !(GHC.Word.W32# k27) <- PA.readPrimArray drbg 09
     let !k2 = Registers (# k20, k21, k22, k23, k24, k25, k26, k27 #)
-    Prim.unsafeIOToPrim $ SHA256.hmac_rr_unsafe vp sp k2 v1
+    Prim.unsafeIOToPrim $ SHA256._hmac_rr vp sp k2 v1
 {-# INLINABLE update #-}
 
 init_counter
