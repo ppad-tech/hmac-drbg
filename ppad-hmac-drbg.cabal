@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               ppad-hmac-drbg
-version:            0.2.1
+version:            0.3.0
 synopsis:           HMAC-based deterministic random bit generator
 license:            MIT
 license-file:       LICENSE
@@ -31,8 +31,8 @@ library
   if flag(llvm)
     ghc-options: -fllvm -O2
   exposed-modules:
-      Crypto.DRBG.HMAC
-    , Crypto.DRBG.HMAC.SHA256
+      Crypto.DRBG.HMAC.SHA256
+    , Crypto.DRBG.HMAC.SHA512
   build-depends:
       base >= 4.9 && < 5
     , bytestring >= 0.9 && < 0.13

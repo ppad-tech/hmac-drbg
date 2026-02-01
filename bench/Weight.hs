@@ -9,21 +9,34 @@
 module Main where
 
 import Control.DeepSeq
-import qualified Crypto.DRBG.HMAC.SHA256 as DRBG
+import qualified Crypto.DRBG.HMAC.SHA256 as DRBG256
+import qualified Crypto.DRBG.HMAC.SHA512 as DRBG512
 import Weigh
 
-instance NFData (DRBG.DRBG s) where
+instance NFData (DRBG256.DRBG s) where
   rnf d = d `seq` ()
 
-instance NFData DRBG.Error where
+instance NFData DRBG256.Error where
+  rnf e = e `seq` ()
+
+instance NFData (DRBG512.DRBG s) where
+  rnf d = d `seq` ()
+
+instance NFData DRBG512.Error where
   rnf e = e `seq` ()
 
 main :: IO ()
 main = do
-  !drbg <- DRBG.new mempty mempty mempty
+  !drbg256 <- DRBG256.new mempty mempty mempty
+  !drbg512 <- DRBG512.new mempty mempty mempty
   mainWith $ do
     wgroup "HMAC-SHA256" $ do
-      io "new" (DRBG.new mempty mempty) mempty
-      io "reseed" (DRBG.reseed drbg mempty) mempty
-      io "gen (32B)" (DRBG.gen drbg mempty) 32
-      io "gen (256B)" (DRBG.gen drbg mempty) 256
+      io "new" (DRBG256.new mempty mempty) mempty
+      io "reseed" (DRBG256.reseed drbg256 mempty) mempty
+      io "gen (32B)" (DRBG256.gen drbg256 mempty) 32
+      io "gen (256B)" (DRBG256.gen drbg256 mempty) 256
+    wgroup "HMAC-SHA512" $ do
+      io "new" (DRBG512.new mempty mempty) mempty
+      io "reseed" (DRBG512.reseed drbg512 mempty) mempty
+      io "gen (32B)" (DRBG512.gen drbg512 mempty) 32
+      io "gen (256B)" (DRBG512.gen drbg512 mempty) 256
