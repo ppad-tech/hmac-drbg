@@ -1,3 +1,4 @@
+{-# OPTIONS_HADDOCK prune #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE PatternSynonyms #-}
@@ -33,6 +34,8 @@ import qualified Crypto.Hash.SHA512 as SHA512
 import Crypto.Hash.SHA512.Internal (Registers(..))
 import qualified Crypto.Hash.SHA512.Internal as SHA512 (cat)
 import Control.Monad.Primitive (PrimMonad, PrimState)
+import Control.Monad.ST (ST)
+import GHC.Exts (RealWorld)
 import qualified Control.Monad.Primitive as Prim (unsafeIOToPrim)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Builder as BSB
@@ -87,6 +90,10 @@ new entropy nonce ps = do
   update drbg (entropy <> nonce <> ps)
   pure $! DRBG drbg
 {-# INLINABLE new #-}
+{-# SPECIALIZE new
+  :: BS.ByteString -> BS.ByteString -> BS.ByteString -> IO (DRBG RealWorld) #-}
+{-# SPECIALIZE new
+  :: BS.ByteString -> BS.ByteString -> BS.ByteString -> ST s (DRBG s) #-}
 
 -- | Reseed a DRBG.
 --
@@ -167,6 +174,12 @@ gen (DRBG drbg) addl@(BI.PS _ _ l) bytes
         write_counter drbg (ctr + 1)
         pure $! Right res
 {-# INLINABLE gen #-}
+{-# SPECIALIZE gen
+  :: DRBG RealWorld -> BS.ByteString -> Word64
+  -> IO (Either Error BS.ByteString) #-}
+{-# SPECIALIZE gen
+  :: DRBG s -> BS.ByteString -> Word64
+  -> ST s (Either Error BS.ByteString) #-}
 
 -- | Wipe the state of a DRBG.
 --
@@ -282,6 +295,10 @@ update drbg provided_data@(BI.PS _ _ l) = do
     let !k2 = Registers (# k20, k21, k22, k23, k24, k25, k26, k27 #)
     Prim.unsafeIOToPrim $ SHA512._hmac_rr vp sp k2 v1
 {-# INLINABLE update #-}
+{-# SPECIALIZE update
+  :: PA.MutablePrimArray RealWorld Word64 -> BS.ByteString -> IO () #-}
+{-# SPECIALIZE update
+  :: PA.MutablePrimArray s Word64 -> BS.ByteString -> ST s () #-}
 
 init_counter
   :: PrimMonad m

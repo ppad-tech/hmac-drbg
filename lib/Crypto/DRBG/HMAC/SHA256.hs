@@ -1,10 +1,11 @@
+{-# OPTIONS_HADDOCK prune #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE UnboxedTuples #-}
 
 -- |
--- Module: Crypto.DRBG.HMAC
+-- Module: Crypto.DRBG.HMAC.SHA256
 -- Copyright: (c) 2024 Jared Tobin
 -- License: MIT
 -- Maintainer: Jared Tobin <jared@ppad.tech>
@@ -33,6 +34,8 @@ import qualified Crypto.Hash.SHA256 as SHA256
 import Crypto.Hash.SHA256.Internal (Registers(..))
 import qualified Crypto.Hash.SHA256.Internal as SHA256 (cat)
 import Control.Monad.Primitive (PrimMonad, PrimState)
+import Control.Monad.ST (ST)
+import GHC.Exts (RealWorld)
 import qualified Control.Monad.Primitive as Prim (unsafeIOToPrim)
 import Data.Bits ((.<<.), (.>>.), (.|.))
 import qualified Data.ByteString as BS
@@ -87,6 +90,10 @@ new entropy nonce ps = do
   update drbg (entropy <> nonce <> ps)
   pure $! DRBG drbg
 {-# INLINABLE new #-}
+{-# SPECIALIZE new
+  :: BS.ByteString -> BS.ByteString -> BS.ByteString -> IO (DRBG RealWorld) #-}
+{-# SPECIALIZE new
+  :: BS.ByteString -> BS.ByteString -> BS.ByteString -> ST s (DRBG s) #-}
 
 -- | Reseed a DRBG.
 --
@@ -160,13 +167,19 @@ gen (DRBG drbg) addl@(BI.PS _ _ l) bytes
         !(GHC.Word.W32# v05) <- PA.readPrimArray drbg 15
         !(GHC.Word.W32# v06) <- PA.readPrimArray drbg 16
         !(GHC.Word.W32# v07) <- PA.readPrimArray drbg 17
-        let !k0  = Registers (# k00, k01, k02, k03, k04, k05, k06, k07 #)
-            !v0  = Registers (# v00, v01, v02, v03, v04, v05, v06, v07 #)
+        let !k0 = Registers (# k00, k01, k02, k03, k04, k05, k06, k07 #)
+            !v0 = Registers (# v00, v01, v02, v03, v04, v05, v06, v07 #)
         !res <- gen_loop drbg k0 v0 bytes
         update drbg addl
         write_counter drbg (ctr + 1)
         pure $! Right res
 {-# INLINABLE gen #-}
+{-# SPECIALIZE gen
+  :: DRBG RealWorld -> BS.ByteString -> Word64
+  -> IO (Either Error BS.ByteString) #-}
+{-# SPECIALIZE gen
+  :: DRBG s -> BS.ByteString -> Word64
+  -> ST s (Either Error BS.ByteString) #-}
 
 -- | Wipe the state of a DRBG.
 --
@@ -287,6 +300,10 @@ update drbg provided_data@(BI.PS _ _ l) = do
     let !k2 = Registers (# k20, k21, k22, k23, k24, k25, k26, k27 #)
     Prim.unsafeIOToPrim $ SHA256._hmac_rr vp sp k2 v1
 {-# INLINABLE update #-}
+{-# SPECIALIZE update
+  :: PA.MutablePrimArray RealWorld Word32 -> BS.ByteString -> IO () #-}
+{-# SPECIALIZE update
+  :: PA.MutablePrimArray s Word32 -> BS.ByteString -> ST s () #-}
 
 init_counter
   :: PrimMonad m
