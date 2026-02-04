@@ -22,9 +22,6 @@ instance NFData DRBG256.Error where
 instance NFData (DRBG512.DRBG s) where
   rnf d = d `seq` ()
 
-instance NFData DRBG512.Error where
-  rnf e = e `seq` ()
-
 main :: IO ()
 main = do
   !drbg256 <- DRBG256.new mempty mempty mempty
