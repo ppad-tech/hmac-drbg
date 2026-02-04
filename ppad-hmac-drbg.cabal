@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               ppad-hmac-drbg
-version:            0.3.0
+version:            0.3.1
 synopsis:           HMAC-based deterministic random bit generator
 license:            MIT
 license-file:       LICENSE

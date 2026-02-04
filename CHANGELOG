@@ -1,5 +1,8 @@
 # Changelog
 
+- 0.3.1 (2026-02-01)
+  * Adds SPECIALIZE pragmas for IO and ST to improve the generated Core.
+
 - 0.3.0 (2026-02-01)
   * This backwards-incompatible version changes the "bring your own HMAC
     function" design and simply provides specialized DRBGs for
