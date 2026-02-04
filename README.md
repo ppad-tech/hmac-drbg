@@ -116,6 +116,11 @@ never to be moved around by the garbage collector, and its components
 are never allocated anywhere else on the heap. You should zero out the
 DRBG state via the 'wipe' function when you've finished using it.
 
+(The security properties of this library have been
+examined and defended in more detail in a
+[security analysis](https://ppad.tech/security-analysis-hmac-drbg) at
+[ppad.tech](https://ppad.tech).)
+
 If you discover any vulnerabilities, please disclose them via
 security@ppad.tech.
 
